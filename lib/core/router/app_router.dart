@@ -18,6 +18,8 @@ import '../../presentation/inventario/inventario_screen.dart';
 import '../../presentation/inventario/nuevo_producto_screen.dart';
 import '../../presentation/inventario/nuevo_destino_screen.dart';
 import '../../presentation/inventario/toma_inventario_screen.dart';
+import '../../presentation/inventario/ver_productos_screen.dart';
+import '../../presentation/inventario/reportes_screen.dart';
 import '../../presentation/inventario/control_stock_screen.dart';
 
 final appRouter = GoRouter(
@@ -98,6 +100,14 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/inventario/toma',
       builder: (context, state) => const TomaInventarioScreen(),
+    ),
+    GoRoute(
+      path: '/inventario/toma/productos',
+      builder: (context, state) => const VerProductosScreen(),
+    ),
+    GoRoute(
+      path: '/inventario/toma/reportes',
+      builder: (context, state) => const ReportesScreen(),
     ),
     GoRoute(
       path: '/inventario/stock',
