@@ -1,0 +1,38 @@
+name: etiquetas
+description: "Control de inventario - Depósito de Etiquetas Galmedic"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.22.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+  drift: ^2.18.0
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.3
+  path: ^1.9.0
+  go_router: ^14.2.0
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.11
+  drift_dev: ^2.18.0
+  riverpod_generator: ^2.4.3
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
