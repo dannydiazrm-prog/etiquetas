@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
-import 'package:flutter/material.dart';
+import '../../presentation/auth/pin_screen.dart';
+import '../../presentation/perfil/perfil_screen.dart';
 import '../../presentation/dashboard/dashboard_screen.dart';
 import '../../presentation/retirados/retirados_screen.dart';
 import '../../presentation/retirados/nuevo_retiro_screen.dart';
@@ -20,8 +21,16 @@ import '../../presentation/inventario/toma_inventario_screen.dart';
 import '../../presentation/inventario/control_stock_screen.dart';
 
 final appRouter = GoRouter(
-  initialLocation: '/',
+  initialLocation: '/pin',
   routes: [
+    GoRoute(
+      path: '/pin',
+      builder: (context, state) => const PinScreen(),
+    ),
+    GoRoute(
+      path: '/perfil',
+      builder: (context, state) => const PerfilScreen(),
+    ),
     GoRoute(
       path: '/',
       builder: (context, state) => const DashboardScreen(),
