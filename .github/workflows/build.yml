@@ -25,7 +25,7 @@ jobs:
 
       - name: Build APK
         run: flutter build apk --release
-		
+
       - name: Build Web
         run: flutter build web --release --base-href /etiquetas/
 
