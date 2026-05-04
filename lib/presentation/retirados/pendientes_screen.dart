@@ -15,16 +15,17 @@ class _PendientesScreenState extends State<PendientesScreen> {
   bool _cerrando = false;
 
   bool _tienePendiente(Map<String, dynamic> data) {
-    final entregada = data['cantidadEntregada'] ?? 0;
-    final estimada = data['cantidadEstimada'] ?? 0;
+    final entregada = (data['cantidadEntregada'] ?? 0).toInt();
+    final estimada = (data['cantidadEstimada'] ?? 0).toInt();
     return entregada > estimada;
   }
 
   int _cantidadPendiente(Map<String, dynamic> data) {
-    final entregada = data['cantidadEntregada'] ?? 0;
-    final estimada = data['cantidadEstimada'] ?? 0;
+    final entregada = (data['cantidadEntregada'] ?? 0).toInt();
+    final estimada = (data['cantidadEstimada'] ?? 0).toInt();
     return entregada - estimada;
   }
+
 
   Future<void> _cerrarConDevolucion(QueryDocumentSnapshot doc) async {
     final data = doc.data() as Map<String, dynamic>;
@@ -428,8 +429,7 @@ class _PendientesScreenState extends State<PendientesScreen> {
                                               horizontal: 10,
                                               vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: Colors.orange
-                                            .withOpacity(0.1),
+                                        color: Colors.orange.withValues(alpha: 0.1),
                                         borderRadius:
                                             BorderRadius.circular(8),
                                         border: Border.all(
@@ -540,7 +540,7 @@ class _PendientesScreenState extends State<PendientesScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.08),
+        color: AppColors.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
