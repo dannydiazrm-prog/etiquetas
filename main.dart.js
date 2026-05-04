@@ -51846,7 +51846,7 @@ if(p&&!q.f)n=n.eD(0,"tipo","Etiqueta")
 else if(q.f&&!p)n=n.eD(0,"tipo","Prospecto")
 p=q.r
 if(p&&!q.w)n=n.eD(0,"idioma","ES")
-else if(q.w&&!p)n=n.eD(0,"idioma","EN")
+else if(q.w&&!p)n=n.eD(0,"idioma","IN")
 j=k
 s=2
 return B.y(n.dL(),$async$z1)
@@ -51966,7 +51966,7 @@ case 2:return B.z(o.at(-1),r)}})
 return B.B($async$zc,r)},
 K(a){var s=this,r=s.al6(a)
 return B.ep(null,null,B.aC(B.b([r,B.bj(B.kn(new B.di(A.dO,s.Q==null?s.ab_():s.ab3(),null),A.c5),1)],t.p),A.M,A.K,A.G))},
-ab_(){var s=this,r=null,q=B.fb(r,A.bi,!1,r,!0,A.a3,r,B.fA(),s.d,r,r,r,r,r,2,B.eO(r,new B.bZ(4,B.al(12),A.c0),r,r,r,r,r,r,!0,r,r,r,r,r,r,A.C,!0,r,r,r,r,new B.bZ(4,B.al(12),A.c8),r,r,r,r,r,r,r,r,r,"Buscar por nombre...",r,r,r,r,r,r,r,r,r,!0,!0,!1,r,A.eB,r,r,r,r,r,r,r,r,r,r,r,r),A.a9,!0,r,!0,r,!1,r,A.b5,r,r,r,r,r,r,r,r,1,r,r,!1,"\u2022",r,r,r,r,r,!1,r,r,!1,r,!0,r,A.bv,r,r,r,r,r,r,r,r,r,r,r,r,!0,A.aD,r,A.c6,r,r,r,r),p=t.p,o=B.iV(B.b([s.yZ("Etiquetas",s.e,new B.axX(s)),s.yZ("Prospectos",s.f,new B.axY(s)),s.yZ("Espa\xf1ol",s.r,new B.axZ(s)),s.yZ("Ingl\xe9s",s.w,new B.ay_(s))],p),8,8)
+ab_(){var s=this,r=null,q=B.fb(r,A.bi,!1,r,!0,A.a3,r,B.fA(),s.d,r,r,r,r,r,2,B.eO(r,new B.bZ(4,B.al(12),A.c0),r,r,r,r,r,r,!0,r,r,r,r,r,r,A.C,!0,r,r,r,r,new B.bZ(4,B.al(12),A.c8),r,r,r,r,r,r,r,r,r,"Buscar por nombre",r,r,r,r,r,r,r,r,r,!0,!0,!1,r,A.eB,r,r,r,r,r,r,r,r,r,r,r,r),A.a9,!0,r,!0,r,!1,r,A.b5,r,r,r,r,r,r,r,r,1,r,r,!1,"\u2022",r,r,r,r,r,!1,r,r,!1,r,!0,r,A.bv,r,r,r,r,r,r,r,r,r,r,r,r,!0,A.aD,r,A.c6,r,r,r,r),p=t.p,o=B.iV(B.b([s.yZ("Etiquetas",s.e,new B.axX(s)),s.yZ("Prospectos",s.f,new B.axY(s)),s.yZ("Espa\xf1ol",s.r,new B.axZ(s)),s.yZ("Ingl\xe9s",s.w,new B.ay_(s))],p),8,8)
 q=B.b([A.LB,A.bl,q,A.bc,o,A.bl,B.c3(B.mq(A.i1,A.j6,s.y?r:s.gabt()),52,1/0),A.bX],p)
 if(s.y)q.push(A.d8)
 if(s.z&&s.x.length===0)q.push(A.jq)
@@ -51988,15 +51988,15 @@ p=k.Ga(p==null?"":p)
 i=i.h(0,"stockActual")
 o=t.p
 s=B.aQ(j,B.aU(B.b([B.bj(B.aC(B.b([A.LF,A.bN,r,A.bN,B.aU(B.b([q,A.aC,p,A.aC,k.Ga("Stock: "+B.j(i==null?0:i))],o),A.M,A.K,A.G,0)],o),A.af,A.K,A.G),1),B.cH(j,j,A.p0,j,j,new B.ay5(k),j,j,j)],o),A.M,A.K,A.G,0),A.Q,j,j,new B.aV(A.D,j,j,s,j,j,A.a4),j,j,j,A.bI,j,j,j)
-i=B.a5("COMPA\xd1ERO",j,j,j,A.bF,j,j,j)
-p=k.QG(A.qV,k.as,"Nombre del compa\xf1ero")
-q=B.a5("LOTE DEL PRODUCTO FINAL",j,j,j,A.bF,j,j,j)
-r=k.QG(A.qW,k.at,"Ej: LOT-2026-001")
+i=B.a5("EL QUE RETIRA",j,j,j,A.bF,j,j,j)
+p=k.QG(A.qV,k.as,"Nombre")
+q=B.a5("LOTE",j,j,j,A.bF,j,j,j)
+r=k.QG(A.qW,k.at,"")
 n=B.a5("DESTINO",j,j,j,A.bF,j,j,j)
 m=k.CW
 l=B.U(m).i("N<1,mG>")
 m=B.S(new B.N(m,new B.ay6(k),l),l.i("a3.E"))
-i=B.b([s,A.bX,i,A.bd,p,A.h4,q,A.bd,r,A.h4,n,A.bd,B.iV(m,8,8),A.h4,B.a5("CANTIDAD ESTIMADA A PRODUCIR",j,j,j,A.bF,j,j,j),A.bd,k.QH(k.ax,"Ej: 1000",A.e8),A.h4,B.a5("CANTIDAD ENTREGADA",j,j,j,A.bF,j,j,j),A.bd,k.QH(k.ay,"Ej: 1200",A.e8),A.eU],o)
+i=B.b([s,A.bX,i,A.bd,p,A.h4,q,A.bd,r,A.h4,n,A.bd,B.iV(m,8,8),A.h4,B.a5("CANTIDAD DEL PRODUCTO",j,j,j,A.bF,j,j,j),A.bd,k.QH(k.ax,"",A.e8),A.h4,B.a5("CANTIDAD ENTREGADA",j,j,j,A.bF,j,j,j),A.bd,k.QH(k.ay,"",A.e8),A.eU],o)
 if(k.cy.length!==0){s=B.a7(A.p.ah(25.5),A.am.n()>>>16&255,A.am.n()>>>8&255,A.am.n()&255)
 r=B.al(8)
 q=B.cs(A.am,1)
@@ -52049,7 +52049,7 @@ s.ay.f0(A.d4)
 s.cy=""},
 $S:0}
 B.ayb.prototype={
-$0(){return this.a.cy="Ingres\xe1 el nombre del compa\xf1ero"},
+$0(){return this.a.cy="Ingres\xe1 el nombre del que retira"},
 $S:0}
 B.ayc.prototype={
 $0(){return this.a.cy="Ingres\xe1 el n\xfamero de lote"},
