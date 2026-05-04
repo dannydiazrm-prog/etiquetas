@@ -61,7 +61,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
     if (_espanol && !_ingles) {
       query = query.where('idioma', isEqualTo: 'ES');
     } else if (_ingles && !_espanol) {
-      query = query.where('idioma', isEqualTo: 'EN');
+      query = query.where('idioma', isEqualTo: 'IN');
     }
 
     final snapshot = await query.get();
@@ -126,7 +126,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         int.tryParse(_cantidadEntregadaController.text.trim());
 
     if (companero.isEmpty) {
-      setState(() => _error = 'Ingresá el nombre del compañero');
+      setState(() => _error = 'Ingresá el nombre del que retira');
       return;
     }
     if (lote.isEmpty) {
@@ -248,7 +248,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         TextField(
           controller: _nombreController,
           decoration: InputDecoration(
-            hintText: 'Buscar por nombre...',
+            hintText: 'Buscar por nombre',
             prefixIcon:
                 const Icon(Icons.search, color: AppColors.primary),
             filled: true,
@@ -438,21 +438,21 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         const SizedBox(height: 24),
 
         // Compañero
-        _buildLabel('COMPAÑERO'),
+        _buildLabel('EL QUE RETIRA'),
         const SizedBox(height: 8),
         _buildTextField(
           controller: _companeroController,
-          hint: 'Nombre del compañero',
+          hint: 'Nombre',
           capitalization: TextCapitalization.words,
         ),
         const SizedBox(height: 20),
 
         // Lote
-        _buildLabel('LOTE DEL PRODUCTO FINAL'),
+        _buildLabel('LOTE'),
         const SizedBox(height: 8),
         _buildTextField(
           controller: _loteController,
-          hint: 'Ej: LOT-2026-001',
+          hint: '',
           capitalization: TextCapitalization.characters,
         ),
         const SizedBox(height: 20),
@@ -495,11 +495,11 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         const SizedBox(height: 20),
 
         // Cantidad estimada
-        _buildLabel('CANTIDAD ESTIMADA A PRODUCIR'),
+        _buildLabel('CANTIDAD DEL PRODUCTO'),
         const SizedBox(height: 8),
         _buildTextField(
           controller: _cantidadEstimadaController,
-          hint: 'Ej: 1000',
+          hint: '',
           teclado: TextInputType.number,
         ),
         const SizedBox(height: 20),
@@ -509,7 +509,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         const SizedBox(height: 8),
         _buildTextField(
           controller: _cantidadEntregadaController,
-          hint: 'Ej: 1200',
+          hint: '',
           teclado: TextInputType.number,
         ),
         const SizedBox(height: 32),
