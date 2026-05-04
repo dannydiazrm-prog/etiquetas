@@ -98,7 +98,7 @@ class _NuevoDestinoScreenState extends State<NuevoDestinoScreen> {
                         controller: _nombreController,
                         textCapitalization: TextCapitalization.words,
                         decoration: InputDecoration(
-                          hintText: 'Ej: Brasil, Uruguay, USA',
+                          hintText: 'Ej: Fondilac, Riegos Modernos',
                           filled: true,
                           fillColor: Colors.white,
                           border: OutlineInputBorder(

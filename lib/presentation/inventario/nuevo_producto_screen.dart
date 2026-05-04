@@ -129,7 +129,7 @@ class _NuevoProductoScreenState extends State<NuevoProductoScreen> {
                         controller: _nombreController,
                         textCapitalization: TextCapitalization.words,
                         decoration: InputDecoration(
-                          hintText: 'Ej: Ivermectina 1%',
+                          hintText: 'Ej: Oximed 50 ml',
                           filled: true,
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
