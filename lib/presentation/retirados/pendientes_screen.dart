@@ -15,17 +15,16 @@ class _PendientesScreenState extends State<PendientesScreen> {
   bool _cerrando = false;
 
   bool _tienePendiente(Map<String, dynamic> data) {
-    final entregada = (data['cantidadEntregada'] ?? 0).toInt();
-    final estimada = (data['cantidadEstimada'] ?? 0).toInt();
+    final entregada = data['cantidadEntregada'] ?? 0;
+    final estimada = data['cantidadEstimada'] ?? 0;
     return entregada > estimada;
   }
 
   int _cantidadPendiente(Map<String, dynamic> data) {
-    final entregada = (data['cantidadEntregada'] ?? 0).toInt();
-    final estimada = (data['cantidadEstimada'] ?? 0).toInt();
+    final entregada = data['cantidadEntregada'] ?? 0;
+    final estimada = data['cantidadEstimada'] ?? 0;
     return entregada - estimada;
   }
-
 
   Future<void> _cerrarConDevolucion(QueryDocumentSnapshot doc) async {
     final data = doc.data() as Map<String, dynamic>;
