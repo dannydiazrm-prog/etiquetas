@@ -13,19 +13,35 @@ class NuevoProductoScreen extends StatefulWidget {
 
 class _NuevoProductoScreenState extends State<NuevoProductoScreen> {
   final _nombreController = TextEditingController();
+  final _codigoController = TextEditingController();
   String? _tipo;
+  String? _subtipo; // 'Local' o 'Exportacion' solo para Etiqueta
   String? _idioma;
   bool _loading = false;
   String _error = '';
 
-  @override
+  String get _prefijo {
+    if (_tipo == 'Prospecto') return '65';
+    if (_tipo == 'Etiqueta' && _subtipo == 'Local') return '66';
+    if (_tipo == 'Etiqueta' && _subtipo == 'Exportacion') return '68';
+    return '';
+  }
+
+  String get _codigoCompleto {
+    if (_prefijo.isEmpty || _codigoController.text.trim().isEmpty) return '';
+    return '$_prefijo${_codigoController.text.trim()}';
+  }
+
+ @override
   void dispose() {
     _nombreController.dispose();
+    _codigoController.dispose();
     super.dispose();
   }
 
   Future<void> _guardar() async {
     final nombre = _nombreController.text.trim();
+    final codigoSufijo = _codigoController.text.trim();
 
     if (nombre.isEmpty) {
       setState(() => _error = 'Ingresá el nombre del producto');
@@ -35,8 +51,17 @@ class _NuevoProductoScreenState extends State<NuevoProductoScreen> {
       setState(() => _error = 'Seleccioná el tipo');
       return;
     }
+    if (_tipo == 'Etiqueta' && _subtipo == null) {
+      setState(() => _error = 'Seleccioná si es Local o Exportación');
+      return;
+    }
     if (_idioma == null) {
       setState(() => _error = 'Seleccioná el idioma');
+      return;
+    }
+    if (codigoSufijo.isEmpty || codigoSufijo.length != 3 ||
+        int.tryParse(codigoSufijo) == null) {
+      setState(() => _error = 'Ingresá los 3 dígitos del código');
       return;
     }
 
@@ -49,10 +74,13 @@ class _NuevoProductoScreenState extends State<NuevoProductoScreen> {
       await FirebaseFirestore.instance.collection('productos').add({
         'nombre': nombre,
         'tipo': _tipo,
+        'subtipo': _subtipo,
         'idioma': _idioma,
+        'codigo': _codigoCompleto,
         'stockActual': 0,
         'stockMinimo': 1000,
         'destinos': [],
+        'stockPorDestino': {},
         'creadoEn': FieldValue.serverTimestamp(),
       });
 
@@ -114,6 +142,38 @@ class _NuevoProductoScreenState extends State<NuevoProductoScreen> {
                           ),
                         ],
                       ),
+                      if (_tipo == 'Etiqueta') ...[
+                        const SizedBox(height: 20),
+                        const Text(
+                          'DESTINO DE LA ETIQUETA',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            _buildSelector(
+                              label: 'LOCAL',
+                              icon: Icons.home_outlined,
+                              seleccionado: _subtipo == 'Local',
+                              onTap: () =>
+                                  setState(() => _subtipo = 'Local'),
+                            ),
+                            const SizedBox(width: 16),
+                            _buildSelector(
+                              label: 'EXPORTACIÓN',
+                              icon: Icons.flight_takeoff_outlined,
+                              seleccionado: _subtipo == 'Exportacion',
+                              onTap: () =>
+                                  setState(() => _subtipo = 'Exportacion'),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 28),
                       const Text(
                         'NOMBRE',
@@ -144,6 +204,81 @@ class _NuevoProductoScreenState extends State<NuevoProductoScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 28),
+                      const Text(
+                        'CÓDIGO DEL PRODUCTO',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 18),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(12),
+                                bottomLeft: Radius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              _prefijo.isEmpty ? 'XX' : _prefijo,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: TextField(
+                              controller: _codigoController,
+                              keyboardType: TextInputType.number,
+                              maxLength: 3,
+                              onChanged: (_) => setState(() {}),
+                              decoration: InputDecoration(
+                                hintText: '123',
+                                counterText: '',
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: const OutlineInputBorder(
+                                  borderRadius: BorderRadius.only(
+                                    topRight: Radius.circular(12),
+                                    bottomRight: Radius.circular(12),
+                                  ),
+                                  borderSide: BorderSide(
+                                      color: AppColors.primary),
+                                ),
+                                focusedBorder: const OutlineInputBorder(
+                                  borderRadius: BorderRadius.only(
+                                    topRight: Radius.circular(12),
+                                    bottomRight: Radius.circular(12),
+                                  ),
+                                  borderSide: BorderSide(
+                                      color: AppColors.primary, width: 2),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_codigoCompleto.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Código completo: $_codigoCompleto',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 28),
                       const Text(
                         'IDIOMA',
