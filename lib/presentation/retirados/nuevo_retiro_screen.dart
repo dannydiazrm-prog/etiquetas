@@ -29,7 +29,8 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
   final _cantidadEstimadaController = TextEditingController();
   final _cantidadEntregadaController = TextEditingController();
   String? _destinoSeleccionado;
-  List<String> _destinosDisponibles = [];
+  String? _destinoSeleccionadoId;
+  List<Map<String, dynamic>> _destinosConStock = [];
   bool _guardando = false;
   String _error = '';
 
@@ -61,7 +62,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
     if (_espanol && !_ingles) {
       query = query.where('idioma', isEqualTo: 'ES');
     } else if (_ingles && !_espanol) {
-      query = query.where('idioma', isEqualTo: 'IN');
+      query = query.where('idioma', isEqualTo: 'EN');
     }
 
     final snapshot = await query.get();
@@ -84,30 +85,42 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
 
   Future<void> _seleccionarProducto(QueryDocumentSnapshot doc) async {
     final data = doc.data() as Map<String, dynamic>;
-    final destinos = List<String>.from(data['destinos'] ?? []);
+    final stockPorDestino = Map<String, dynamic>.from(
+      data['stockPorDestino'] ?? {},
+    );
 
-    List<String> nombresDestinos = [];
+    List<Map<String, dynamic>> destinosConStock = [];
 
-    for (final id in destinos) {
+    for (final entry in stockPorDestino.entries) {
+      final id = entry.key;
+      final stock = (entry.value as num?)?.toInt() ?? 0;
+      if (stock <= 0) continue;
+
+      String nombre;
       if (id == 'todos') {
-        nombresDestinos.add('Todos');
+        nombre = 'Todos';
       } else if (id == 'local') {
-        nombresDestinos.add('Local');
+        nombre = 'Local';
       } else {
         final destinoDoc = await FirebaseFirestore.instance
             .collection('destinos')
             .doc(id)
             .get();
-        if (destinoDoc.exists) {
-          nombresDestinos.add(destinoDoc.data()?['nombre'] ?? id);
-        }
+        nombre = destinoDoc.data()?['nombre'] ?? id;
       }
+
+      destinosConStock.add({
+        'id': id,
+        'nombre': nombre,
+        'stock': stock,
+      });
     }
 
     setState(() {
       _productoSeleccionado = doc;
-      _destinosDisponibles = nombresDestinos;
+      _destinosConStock = destinosConStock;
       _destinoSeleccionado = null;
+      _destinoSeleccionadoId = null;
       _companeroController.clear();
       _loteController.clear();
       _cantidadEstimadaController.clear();
@@ -132,7 +145,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
       setState(() => _error = 'Ingresá el número de lote');
       return;
     }
-    if (_destinoSeleccionado == null) {
+    if (_destinoSeleccionadoId == null) {
       setState(() => _error = 'Seleccioná un destino');
       return;
     }
@@ -146,11 +159,25 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
     }
 
     final data = _productoSeleccionado!.data() as Map<String, dynamic>;
-    final stockActual = (data['stockActual'] ?? 0) as num;
+    final stockPorDestino = Map<String, dynamic>.from(
+      data['stockPorDestino'] ?? {},
+    );
 
-    if (cantidadEntregada > stockActual.toInt()) {
-      setState(
-          () => _error = 'Stock insuficiente. Stock actual: $stockActual');
+    // Determinar de qué destino descontar
+    String claveDescuento = _destinoSeleccionadoId!;
+    int stockDisponible =
+        (stockPorDestino[claveDescuento] as num?)?.toInt() ?? 0;
+
+    // Si no hay stock en ese destino, buscar en Todos automáticamente
+    if (stockDisponible <= 0 && claveDescuento != 'todos') {
+      claveDescuento = 'todos';
+      stockDisponible =
+          (stockPorDestino['todos'] as num?)?.toInt() ?? 0;
+    }
+
+    if (cantidadEntregada > stockDisponible) {
+      setState(() =>
+          _error = 'Stock insuficiente para este destino: $stockDisponible');
       return;
     }
 
@@ -160,35 +187,37 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
     });
 
     try {
-      // ─── CORRECCIÓN PRINCIPAL ──────────────────────────────────────────
-      // El estado se determina comparando cantidades:
-      //   - entregada > estimada → 'pendiente' (hay sobrante para devolver)
-      //   - entregada <= estimada → 'cerrado' (entrega exacta o menor,
-      //     no hay nada que devolver, se registra el consumo real ya)
-      // ──────────────────────────────────────────────────────────────────
       final hayPendiente = cantidadEntregada > cantidadEstimada;
       final estadoInicial = hayPendiente ? 'pendiente' : 'cerrado';
-
-      // Si no hay pendiente, el consumo real es directo
       final consumoReal = hayPendiente ? null : cantidadEntregada;
       final perdida = hayPendiente ? null : 0;
-      final motivoCierre = hayPendiente ? null : 'Entrega exacta o menor';
+      final motivoCierre =
+          hayPendiente ? null : 'Entrega exacta o menor';
+
+      // Actualizar stockPorDestino
+      stockPorDestino[claveDescuento] =
+          stockDisponible - cantidadEntregada;
+
+      // Recalcular total
+      final nuevoStockTotal = stockPorDestino.values
+          .fold<int>(0, (sum, v) => sum + ((v as num).toInt()));
 
       final batch = FirebaseFirestore.instance.batch();
 
-      // Actualizar stock
       batch.update(
         FirebaseFirestore.instance
             .collection('productos')
             .doc(_productoSeleccionado!.id),
-        {'stockActual': stockActual.toInt() - cantidadEntregada},
+        {
+          'stockActual': nuevoStockTotal,
+          'stockPorDestino': stockPorDestino,
+        },
       );
 
-      // Registrar retiro
       final retiroRef =
           FirebaseFirestore.instance.collection('retiros').doc();
 
-      final Map<String, dynamic> retiroData = {
+      batch.set(retiroRef, {
         'productoId': _productoSeleccionado!.id,
         'productoNombre': data['nombre'],
         'tipo': data['tipo'],
@@ -196,6 +225,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         'companero': companero,
         'lote': lote,
         'destino': _destinoSeleccionado,
+        'destinoId': claveDescuento,
         'cantidadEstimada': cantidadEstimada,
         'cantidadEntregada': cantidadEntregada,
         'cantidadDevuelta': 0,
@@ -206,9 +236,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         'fecha': FieldValue.serverTimestamp(),
         'fechaCierre':
             hayPendiente ? null : FieldValue.serverTimestamp(),
-      };
-
-      batch.set(retiroRef, retiroData);
+      });
 
       await batch.commit();
 
@@ -271,7 +299,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         TextField(
           controller: _nombreController,
           decoration: InputDecoration(
-            hintText: 'Buscar por nombre',
+            hintText: 'Buscar por nombre...',
             prefixIcon:
                 const Icon(Icons.search, color: AppColors.primary),
             filled: true,
@@ -282,8 +310,8 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: AppColors.primary, width: 2),
+              borderSide: const BorderSide(
+                  color: AppColors.primary, width: 2),
             ),
           ),
         ),
@@ -296,10 +324,10 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
                 (v) => setState(() => _etiquetas = v)),
             _buildChip('Prospectos', _prospectos,
                 (v) => setState(() => _prospectos = v)),
-            _buildChip(
-                'Español', _espanol, (v) => setState(() => _espanol = v)),
-            _buildChip(
-                'Inglés', _ingles, (v) => setState(() => _ingles = v)),
+            _buildChip('Español', _espanol,
+                (v) => setState(() => _espanol = v)),
+            _buildChip('Inglés', _ingles,
+                (v) => setState(() => _ingles = v)),
           ],
         ),
         const SizedBox(height: 16),
@@ -336,7 +364,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
           ),
         ..._resultados.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          final stock = (data['stockActual'] ?? 0) as num;
+          final stock = data['stockActual'] ?? 0;
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             child: InkWell(
@@ -348,7 +376,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.3),
+                    color: AppColors.primary.withOpacity(0.3),
                   ),
                 ),
                 child: Row(
@@ -373,7 +401,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
                               _buildTag(data['idioma'] ?? ''),
                               const SizedBox(width: 8),
                               _buildTag(
-                                'Stock: ${stock.toInt()}',
+                                'Stock: $stock',
                                 color: stock < 1000
                                     ? Colors.orange
                                     : AppColors.primary,
@@ -400,15 +428,12 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
 
   Widget _buildFormulario() {
     final data = _productoSeleccionado!.data() as Map<String, dynamic>;
-    final stockActual = (data['stockActual'] ?? 0) as num;
-
-    // Preview en tiempo real de si va a quedar pendiente
-    final entregadaPreview =
-        int.tryParse(_cantidadEntregadaController.text.trim());
     final estimadaPreview =
         int.tryParse(_cantidadEstimadaController.text.trim());
-    final quedaPendiente = entregadaPreview != null &&
-        estimadaPreview != null &&
+    final entregadaPreview =
+        int.tryParse(_cantidadEntregadaController.text.trim());
+    final quedaPendiente = estimadaPreview != null &&
+        entregadaPreview != null &&
         entregadaPreview > estimadaPreview;
 
     return Column(
@@ -451,7 +476,8 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
                         const SizedBox(width: 8),
                         _buildTagBlanco(data['idioma'] ?? ''),
                         const SizedBox(width: 8),
-                        _buildTagBlanco('Stock: ${stockActual.toInt()}'),
+                        _buildTagBlanco(
+                            'Stock: ${data['stockActual'] ?? 0}'),
                       ],
                     ),
                   ],
@@ -467,63 +493,92 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         ),
         const SizedBox(height: 24),
 
-        // Compañero
-        _buildLabel('EL QUE RETIRA'),
+        _buildLabel('COMPAÑERO'),
         const SizedBox(height: 8),
         _buildTextField(
           controller: _companeroController,
-          hint: 'Nombre',
+          hint: 'Nombre del compañero',
           capitalization: TextCapitalization.words,
         ),
         const SizedBox(height: 20),
 
-        // Lote
-        _buildLabel('LOTE'),
+        _buildLabel('LOTE DEL PRODUCTO FINAL'),
         const SizedBox(height: 8),
         _buildTextField(
           controller: _loteController,
-          hint: '',
+          hint: 'Ej: LOT-2026-001',
           capitalization: TextCapitalization.characters,
         ),
         const SizedBox(height: 20),
 
-        // Destino
         _buildLabel('DESTINO'),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _destinosDisponibles.map((destino) {
-            final seleccionado = _destinoSeleccionado == destino;
-            return GestureDetector(
-              onTap: () =>
-                  setState(() => _destinoSeleccionado = destino),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color:
-                      seleccionado ? AppColors.primary : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.primary),
-                ),
-                child: Text(
-                  destino,
-                  style: TextStyle(
+        if (_destinosConStock.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.red),
+            ),
+            child: const Text(
+              'Este producto no tiene stock registrado por destino. Realizá una recepción primero.',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _destinosConStock.map((destino) {
+              final id = destino['id'] as String;
+              final nombre = destino['nombre'] as String;
+              final stock = destino['stock'] as int;
+              final seleccionado = _destinoSeleccionadoId == id;
+              return GestureDetector(
+                onTap: () => setState(() {
+                  _destinoSeleccionado = nombre;
+                  _destinoSeleccionadoId = id;
+                }),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
                     color: seleccionado
-                        ? Colors.white
-                        : AppColors.primary,
-                    fontWeight: FontWeight.w600,
+                        ? AppColors.primary
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.primary),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        nombre,
+                        style: TextStyle(
+                          color: seleccionado
+                              ? Colors.white
+                              : AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Stock: $stock',
+                        style: TextStyle(
+                          color: seleccionado
+                              ? Colors.white70
+                              : AppColors.primary.withOpacity(0.6),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            );
-          }).toList(),
-        ),
+              );
+            }).toList(),
+          ),
         const SizedBox(height: 20),
 
-        // Cantidad estimada
         _buildLabel('CANTIDAD DEL PRODUCTO'),
         const SizedBox(height: 8),
         _buildTextField(
@@ -534,7 +589,6 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         ),
         const SizedBox(height: 20),
 
-        // Cantidad entregada
         _buildLabel('CANTIDAD ENTREGADA'),
         const SizedBox(height: 8),
         _buildTextField(
@@ -544,14 +598,13 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
           onChanged: (_) => setState(() {}),
         ),
 
-        // ─── Preview de pendiente ─────────────────────────────────────────
         if (quedaPendiente) ...[
           const SizedBox(height: 12),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.orange.withValues(alpha: 0.1),
+              color: Colors.orange.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.orange),
             ),
@@ -574,7 +627,6 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
             ),
           ),
         ],
-        // ─────────────────────────────────────────────────────────────────
 
         const SizedBox(height: 32),
 
@@ -584,7 +636,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
             padding: const EdgeInsets.all(12),
             margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-              color: Colors.red.withValues(alpha: 0.1),
+              color: Colors.red.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.red),
             ),
@@ -688,7 +740,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: (color ?? AppColors.primary).withValues(alpha: 0.1),
+        color: (color ?? AppColors.primary).withOpacity(0.1),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
@@ -706,7 +758,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
+        color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
