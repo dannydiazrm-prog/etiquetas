@@ -49435,7 +49435,7 @@ case 2:return B.z(o.at(-1),r)}})
 return B.B($async$z_,r)},
 K(a){var s=this,r=s.aaO(a)
 return B.et(null,null,B.az(B.b([r,B.b4(B.ju(new B.dc(A.dB,s.Q==null?s.aaM():s.aaN(),null),A.bN),1)],t.p),A.L,A.H,A.G))},
-aaM(){var s=this,r=null,q=B.eV(r,A.bg,!1,r,!0,A.a2,r,B.fg(),s.d,r,r,r,r,r,2,B.eI(r,new B.bX(4,B.ag(12),A.bW),r,r,r,r,r,r,!0,r,r,r,r,r,r,A.A,!0,r,r,r,r,new B.bX(4,B.ag(12),A.c4),r,r,r,r,r,r,r,r,r,"Buscar por nombre...",r,r,r,r,r,r,r,r,r,!0,!0,!1,r,A.eE,r,r,r,r,r,r,r,r,r,r,r,r),A.a9,!0,r,!0,r,!1,r,A.b7,r,r,r,r,r,r,r,r,1,r,r,!1,"\u2022",r,r,r,r,r,!1,r,r,!1,r,!0,r,A.bs,r,r,r,r,r,r,r,r,r,r,r,r,!0,A.aD,r,A.c1,r,r,r,r),p=t.p,o=B.hI(B.b([s.yY("Etiquetas",s.e,new B.aq1(s)),s.yY("Prospectos",s.f,new B.aq2(s)),s.yY("Espa\xf1ol",s.r,new B.aq3(s)),s.yY("IN",s.w,new B.aq4(s))],p),8,8)
+aaM(){var s=this,r=null,q=B.eV(r,A.bg,!1,r,!0,A.a2,r,B.fg(),s.d,r,r,r,r,r,2,B.eI(r,new B.bX(4,B.ag(12),A.bW),r,r,r,r,r,r,!0,r,r,r,r,r,r,A.A,!0,r,r,r,r,new B.bX(4,B.ag(12),A.c4),r,r,r,r,r,r,r,r,r,"Buscar por nombre...",r,r,r,r,r,r,r,r,r,!0,!0,!1,r,A.eE,r,r,r,r,r,r,r,r,r,r,r,r),A.a9,!0,r,!0,r,!1,r,A.b7,r,r,r,r,r,r,r,r,1,r,r,!1,"\u2022",r,r,r,r,r,!1,r,r,!1,r,!0,r,A.bs,r,r,r,r,r,r,r,r,r,r,r,r,!0,A.aD,r,A.c1,r,r,r,r),p=t.p,o=B.hI(B.b([s.yY("Etiquetas",s.e,new B.aq1(s)),s.yY("Prospectos",s.f,new B.aq2(s)),s.yY("Espa\xf1ol",s.r,new B.aq3(s)),s.yY("Ingl\xe9s",s.w,new B.aq4(s))],p),8,8)
 q=B.b([A.LI,A.b4,q,A.b_,o,A.b4,B.c2(B.jZ(A.fK,A.hi,s.y?r:s.gaaP()),52,1/0),A.bQ],p)
 if(s.y)q.push(A.d0)
 if(s.z&&s.x.length===0)q.push(A.jz)
@@ -50757,7 +50757,7 @@ case 6:n.E(new B.aya(n))
 case 1:return B.A(q,r)
 case 2:return B.z(o.at(-1),r)}})
 return B.B($async$zL,r)},
-K(a){var s,r,q,p=this,o=null,n=p.alo(a),m=t.p,l=B.b([A.aPB,A.b_,B.aM(B.b([p.z4(A.T4,"ETIQUETA",new B.ayf(p),p.e==="Etiqueta"),A.hc,p.z4(A.Tc,"PROSPECTO",new B.ayg(p),p.e==="Prospecto")],m),A.L,A.H,A.G,0),A.L4,A.aPy,A.b_,B.eV(o,A.bg,!1,o,!0,A.a2,o,B.fg(),p.d,o,o,o,o,o,2,B.eI(o,new B.bX(4,B.ag(12),A.bW),o,o,o,o,o,o,!0,o,o,o,o,o,o,A.A,!0,o,o,o,o,new B.bX(4,B.ag(12),A.c4),o,o,o,o,o,o,o,o,o,"Ej: Oximed 50 ml",o,o,o,o,o,o,o,o,o,!0,!0,!1,o,o,o,o,o,o,o,o,o,o,o,o,o,o),A.a9,!0,o,!0,o,!1,o,A.b7,o,o,o,o,o,o,o,o,1,o,o,!1,"\u2022",o,o,o,o,o,!1,o,o,!1,o,!0,o,A.bs,o,o,o,o,o,o,o,o,o,o,o,o,!0,A.aD,o,A.qX,o,o,o,o),A.L4,A.aP5,A.b_,B.aM(B.b([p.z4(A.vf,"ESPA\xd1OL",new B.ayh(p),p.f==="ES"),A.hc,p.z4(A.vf,"IN",new B.ayi(p),p.f==="EN")],m),A.L,A.H,A.G,0),A.eX],m)
+K(a){var s,r,q,p=this,o=null,n=p.alo(a),m=t.p,l=B.b([A.aPB,A.b_,B.aM(B.b([p.z4(A.T4,"ETIQUETA",new B.ayf(p),p.e==="Etiqueta"),A.hc,p.z4(A.Tc,"PROSPECTO",new B.ayg(p),p.e==="Prospecto")],m),A.L,A.H,A.G,0),A.L4,A.aPy,A.b_,B.eV(o,A.bg,!1,o,!0,A.a2,o,B.fg(),p.d,o,o,o,o,o,2,B.eI(o,new B.bX(4,B.ag(12),A.bW),o,o,o,o,o,o,!0,o,o,o,o,o,o,A.A,!0,o,o,o,o,new B.bX(4,B.ag(12),A.c4),o,o,o,o,o,o,o,o,o,"Ej: Oximed 50 ml",o,o,o,o,o,o,o,o,o,!0,!0,!1,o,o,o,o,o,o,o,o,o,o,o,o,o,o),A.a9,!0,o,!0,o,!1,o,A.b7,o,o,o,o,o,o,o,o,1,o,o,!1,"\u2022",o,o,o,o,o,!1,o,o,!1,o,!0,o,A.bs,o,o,o,o,o,o,o,o,o,o,o,o,!0,A.aD,o,A.qX,o,o,o,o),A.L4,A.aP5,A.b_,B.aM(B.b([p.z4(A.vf,"ESPA\xd1OL",new B.ayh(p),p.f==="ES"),A.hc,p.z4(A.vf,"INGL\xc8S",new B.ayi(p),p.f==="EN")],m),A.L,A.H,A.G,0),A.eX],m)
 if(p.w.length!==0){s=B.a7(A.p.ah(25.5),A.a8.n()>>>16&255,A.a8.n()>>>8&255,A.a8.n()&255)
 r=B.ag(8)
 q=B.c6(A.a8,1)
@@ -50875,7 +50875,7 @@ case 5:o.E(new B.aBU(o))
 return B.A(null,r)
 case 1:return B.z(p.at(-1),r)}})
 return B.B($async$vF,r)},
-K(a){var s=this,r=null,q=s.anP(a),p=t.p,o=B.hI(B.b([s.lV("Con stock",s.d,new B.aC3(s)),s.lV("Sin stock",s.e,new B.aC4(s)),s.lV("Etiquetas",s.r,new B.aC5(s)),s.lV("Prospectos",s.f,new B.aC6(s)),s.lV("Espa\xf1ol",s.x,new B.aC7(s)),s.lV("IN",s.w,new B.aC8(s)),s.lV("C\xf3digo 65",s.y,new B.aC9(s)),s.lV("C\xf3digo 67",s.z,new B.aCa(s)),s.lV("C\xf3digo 68",s.Q,new B.aCb(s))],p),8,8),n=s.as,m=n?r:s.ganQ()
+K(a){var s=this,r=null,q=s.anP(a),p=t.p,o=B.hI(B.b([s.lV("Con stock",s.d,new B.aC3(s)),s.lV("Sin stock",s.e,new B.aC4(s)),s.lV("Etiquetas",s.r,new B.aC5(s)),s.lV("Prospectos",s.f,new B.aC6(s)),s.lV("Espa\xf1ol",s.x,new B.aC7(s)),s.lV("Ingl\xe9s",s.w,new B.aC8(s)),s.lV("C\xf3digo 65",s.y,new B.aC9(s)),s.lV("C\xf3digo 67",s.z,new B.aCa(s)),s.lV("C\xf3digo 68",s.Q,new B.aCb(s))],p),8,8),n=s.as,m=n?r:s.ganQ()
 return B.et(r,r,B.az(B.b([q,B.b4(B.dK(new B.dc(A.dB,B.ju(B.az(B.b([A.jf,A.b_,o,A.eX,B.c2(B.jZ(A.Tw,n?A.dX:A.aPg,m),56,1/0)],p),A.af,A.H,A.G),A.bN),r),r,r),1)],p),A.L,A.H,A.G))},
 lV(a,b,c){var s=null,r=b?A.D:A.A,q=B.ag(20),p=B.c6(A.D,1)
 return B.dY(s,B.hk(B.a0(a,s,s,s,B.bn(s,s,b?A.A:A.D,s,s,s,s,s,s,s,s,13,s,s,A.aY,s,s,!0,s,s,s,s,s,s,s,s),s,s,s),s,A.au,new B.aL(r,s,p,q,s,s,A.X),A.ah,s,s,s,A.fw,s),A.a9,!1,s,s,s,s,s,s,s,s,s,s,s,s,s,s,new B.aBH(c,b),s,s,s,s,s,s)},
@@ -51302,7 +51302,7 @@ l=B.R(new B.M(B.b(["Etiqueta","Prospecto"],t.s),new B.aFA(m,b),l),l.i("a4.E"))
 l=B.aM(l,A.L,A.H,A.G,0)
 s=t.N
 r=t.HS
-s=B.R(new B.M(B.b([B.a8(["label","ESPA\xd1OL","value","ES"],s,s),B.a8(["label","IN","value","EN"],s,s)],t.m0),new B.aFB(m,b),r),r.i("a4.E"))
+s=B.R(new B.M(B.b([B.a8(["label","ESPA\xd1OL","value","ES"],s,s),B.a8(["label","INGL\xc8S","value","EN"],s,s)],t.m0),new B.aFB(m,b),r),r.i("a4.E"))
 r=t.p
 s=B.ju(B.az(B.b([A.aP6,A.b0,n,A.b4,A.aP7,A.b0,l,A.b4,A.aPQ,A.b0,B.aM(s,A.L,A.H,A.G,0)],r),A.af,A.H,A.cU),p)
 return B.MD(B.b([B.lL(A.jg,new B.aFC(a),p),B.eP(A.aPt,new B.aFD(m,q.b,q.d,o,a),B.w4(p,p,A.D,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p,p))],r),s,A.aQ3)},
@@ -52003,7 +52003,7 @@ p=q?l:new B.aAz(m,a)
 r.push(B.c2(B.eP(q?A.dX:A.aPU,p,l),52,1/0))
 A.l.N(s,B.b([A.RA,new B.aP(A.bG,B.az(r,A.af,A.H,A.G),l)],n))}return B.hk(B.az(s,A.L,A.H,A.G),l,A.au,new B.aL(A.A,l,j,k,l,l,A.X),A.ah,l,l,A.d2,l,l)},
 abe(){var s=this,r=null,q=t.p
-return B.az(B.b([A.jf,A.b_,B.eV(r,A.bg,!1,r,!0,A.a2,r,B.fg(),s.d,r,r,r,r,r,2,B.eI(r,new B.bX(4,B.ag(12),A.bW),r,r,r,r,r,r,!0,r,r,r,r,r,r,A.A,!0,r,r,r,r,new B.bX(4,B.ag(12),A.c4),r,r,r,r,r,r,r,r,r,"Buscar por nombre...",r,r,r,r,r,r,r,r,r,!0,!0,!1,r,A.eE,r,r,r,r,r,r,r,r,r,r,r,r),A.a9,!0,r,!0,r,!1,r,A.b7,r,r,r,r,r,r,r,r,1,r,r,!1,"\u2022",r,r,r,r,r,!1,r,r,!1,r,!0,r,A.bs,r,r,r,r,r,r,r,r,r,r,r,r,!0,A.aD,r,A.c1,r,r,r,r),A.b_,B.hI(B.b([s.Av("Etiquetas",s.e,new B.aAo(s)),s.Av("Prospectos",s.f,new B.aAp(s)),s.Av("Espa\xf1ol",s.r,new B.aAq(s)),s.Av("IN",s.w,new B.aAr(s))],q),8,8)],q),A.af,A.H,A.G)},
+return B.az(B.b([A.jf,A.b_,B.eV(r,A.bg,!1,r,!0,A.a2,r,B.fg(),s.d,r,r,r,r,r,2,B.eI(r,new B.bX(4,B.ag(12),A.bW),r,r,r,r,r,r,!0,r,r,r,r,r,r,A.A,!0,r,r,r,r,new B.bX(4,B.ag(12),A.c4),r,r,r,r,r,r,r,r,r,"Buscar por nombre...",r,r,r,r,r,r,r,r,r,!0,!0,!1,r,A.eE,r,r,r,r,r,r,r,r,r,r,r,r),A.a9,!0,r,!0,r,!1,r,A.b7,r,r,r,r,r,r,r,r,1,r,r,!1,"\u2022",r,r,r,r,r,!1,r,r,!1,r,!0,r,A.bs,r,r,r,r,r,r,r,r,r,r,r,r,!0,A.aD,r,A.c1,r,r,r,r),A.b_,B.hI(B.b([s.Av("Etiquetas",s.e,new B.aAo(s)),s.Av("Prospectos",s.f,new B.aAp(s)),s.Av("Espa\xf1ol",s.r,new B.aAq(s)),s.Av("INGLES",s.w,new B.aAr(s))],q),8,8)],q),A.af,A.H,A.G)},
 Av(a,b,c){var s=null,r=b?A.D:A.A,q=B.ag(20),p=B.c6(A.D,1)
 return B.dY(s,B.hk(B.a0(a,s,s,s,B.bn(s,s,b?A.A:A.D,s,s,s,s,s,s,s,s,13,s,s,A.aY,s,s,!0,s,s,s,s,s,s,s,s),s,s,s),s,A.au,new B.aL(r,s,p,q,s,s,A.X),A.ah,s,s,s,A.fw,s),A.a9,!1,s,s,s,s,s,s,s,s,s,s,s,s,s,s,new B.aAj(c,b),s,s,s,s,s,s)},
 IB(a){var s=null,r=B.a7(A.p.ah(25.5),A.D.n()>>>16&255,A.D.n()>>>8&255,A.D.n()&255),q=B.ag(6)
@@ -52556,7 +52556,7 @@ case 2:return B.z(o.at(-1),r)}})
 return B.B($async$zg,r)},
 K(a){var s=this,r=s.alp(a)
 return B.et(null,null,B.az(B.b([r,B.b4(B.ju(new B.dc(A.dB,s.Q==null?s.abc():s.abg(),null),A.bN),1)],t.p),A.L,A.H,A.G))},
-abc(){var s=this,r=null,q=B.eV(r,A.bg,!1,r,!0,A.a2,r,B.fg(),s.d,r,r,r,r,r,2,B.eI(r,new B.bX(4,B.ag(12),A.bW),r,r,r,r,r,r,!0,r,r,r,r,r,r,A.A,!0,r,r,r,r,new B.bX(4,B.ag(12),A.c4),r,r,r,r,r,r,r,r,r,"Buscar por nombre...",r,r,r,r,r,r,r,r,r,!0,!0,!1,r,A.eE,r,r,r,r,r,r,r,r,r,r,r,r),A.a9,!0,r,!0,r,!1,r,A.b7,r,r,r,r,r,r,r,r,1,r,r,!1,"\u2022",r,r,r,r,r,!1,r,r,!1,r,!0,r,A.bs,r,r,r,r,r,r,r,r,r,r,r,r,!0,A.aD,r,A.c1,r,r,r,r),p=t.p,o=B.hI(B.b([s.z2("Etiquetas",s.e,new B.ayo(s)),s.z2("Prospectos",s.f,new B.ayp(s)),s.z2("Espa\xf1ol",s.r,new B.ayq(s)),s.z2("IN",s.w,new B.ayr(s))],p),8,8)
+abc(){var s=this,r=null,q=B.eV(r,A.bg,!1,r,!0,A.a2,r,B.fg(),s.d,r,r,r,r,r,2,B.eI(r,new B.bX(4,B.ag(12),A.bW),r,r,r,r,r,r,!0,r,r,r,r,r,r,A.A,!0,r,r,r,r,new B.bX(4,B.ag(12),A.c4),r,r,r,r,r,r,r,r,r,"Buscar por nombre...",r,r,r,r,r,r,r,r,r,!0,!0,!1,r,A.eE,r,r,r,r,r,r,r,r,r,r,r,r),A.a9,!0,r,!0,r,!1,r,A.b7,r,r,r,r,r,r,r,r,1,r,r,!1,"\u2022",r,r,r,r,r,!1,r,r,!1,r,!0,r,A.bs,r,r,r,r,r,r,r,r,r,r,r,r,!0,A.aD,r,A.c1,r,r,r,r),p=t.p,o=B.hI(B.b([s.z2("Etiquetas",s.e,new B.ayo(s)),s.z2("Prospectos",s.f,new B.ayp(s)),s.z2("Espa\xf1ol",s.r,new B.ayq(s)),s.z2("Ingl\xe9s",s.w,new B.ayr(s))],p),8,8)
 q=B.b([A.LI,A.b4,q,A.b_,o,A.b4,B.c2(B.jZ(A.fK,A.hi,s.y?r:s.gabG()),52,1/0),A.bQ],p)
 if(s.y)q.push(A.d0)
 if(s.z&&s.x.length===0)q.push(A.jz)
