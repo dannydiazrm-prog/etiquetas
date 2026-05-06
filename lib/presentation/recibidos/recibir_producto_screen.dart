@@ -107,14 +107,24 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
     _codigoController.clear();
     await _cargarDestinos();
 
-    final destinosActuales = List<String>.from(data['destinos'] ?? []);
     setState(() {
       _expandidoId = id;
       for (var d in _destinos) {
-        _destinosSeleccionados[d['id'] as String] =
-            destinosActuales.contains(d['id']);
+        _destinosSeleccionados[d['id'] as String] = false;
       }
     });
+  }
+
+  String _calcularPrefijo(Map<String, dynamic> data) {
+    final destinosHabilitados = _destinosSeleccionados.entries
+        .where((e) => e.value)
+        .map((e) => e.key)
+        .toList();
+    if (data['tipo'] == 'Prospecto') return '65';
+    if (destinosHabilitados.contains('todos') ||
+        destinosHabilitados.contains('local')) return '67';
+    if (destinosHabilitados.isNotEmpty) return '68';
+    return '??';
   }
 
   Future<void> _confirmar(QueryDocumentSnapshot doc) async {
@@ -152,16 +162,7 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
           .map((e) => e.key)
           .toList();
 
-      String prefijo;
-      if (data['tipo'] == 'Prospecto') {
-        prefijo = '65';
-      } else if (destinosHabilitados.contains('todos') ||
-          destinosHabilitados.contains('local')) {
-        prefijo = '67';
-      } else {
-        prefijo = '68';
-      }
-
+      final prefijo = _calcularPrefijo(data);
       final codigoCompleto = '$prefijo$codigoSufijo';
 
       final stockPorDestino = Map<String, dynamic>.from(
@@ -184,7 +185,8 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
       final nuevoStockTotal = stockPorDestino.values
           .fold<int>(0, (sum, v) => sum + (v as int));
 
-      final destinosActuales = List<String>.from(data['destinos'] ?? []);
+      final destinosActuales =
+          List<String>.from(data['destinos'] ?? []);
       for (final d in destinosHabilitados) {
         if (!destinosActuales.contains(d)) {
           destinosActuales.add(d);
@@ -357,7 +359,8 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
                             const SizedBox(width: 8),
                             _buildTag(data['idioma'] ?? ''),
                             const SizedBox(width: 8),
-                            _buildTag('Stock: ${data['stockActual'] ?? 0}'),
+                            _buildTag(
+                                'Stock: ${data['stockActual'] ?? 0}'),
                           ],
                         ),
                       ],
@@ -409,7 +412,7 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'CÓDIGO (3 DÍGITOS)',
+                    'CÓDIGO',
                     style: TextStyle(
                       color: AppColors.primary,
                       fontSize: 13,
@@ -418,28 +421,58 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: _codigoController,
-                    keyboardType: TextInputType.number,
-                    maxLength: 3,
-                    decoration: InputDecoration(
-                      hintText: '123',
-                      counterText: '',
-                      helperText:
-                          'El prefijo (65/67/68) se asigna automáticamente',
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            const BorderSide(color: AppColors.primary),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 18),
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(12),
+                            bottomLeft: Radius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          _calcularPrefijo(data),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 18,
+                          ),
+                        ),
                       ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: AppColors.primary, width: 2),
+                      Expanded(
+                        child: TextField(
+                          controller: _codigoController,
+                          keyboardType: TextInputType.number,
+                          maxLength: 3,
+                          onChanged: (_) => setState(() {}),
+                          decoration: InputDecoration(
+                            hintText: '123',
+                            counterText: '',
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                            border: const OutlineInputBorder(
+                              borderRadius: BorderRadius.only(
+                                topRight: Radius.circular(12),
+                                bottomRight: Radius.circular(12),
+                              ),
+                              borderSide:
+                                  BorderSide(color: AppColors.primary),
+                            ),
+                            focusedBorder: const OutlineInputBorder(
+                              borderRadius: BorderRadius.only(
+                                topRight: Radius.circular(12),
+                                bottomRight: Radius.circular(12),
+                              ),
+                              borderSide: BorderSide(
+                                  color: AppColors.primary, width: 2),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   const Text(

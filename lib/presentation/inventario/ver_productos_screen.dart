@@ -19,6 +19,9 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
   bool _etiquetas = false;
   bool _ingles = false;
   bool _espanol = false;
+  bool _prefijo65 = false;
+  bool _prefijo67 = false;
+  bool _prefijo68 = false;
   List<QueryDocumentSnapshot> _resultados = [];
   bool _buscando = false;
   bool _buscado = false;
@@ -37,14 +40,12 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
 
     Query query = FirebaseFirestore.instance.collection('productos');
 
-    // Filtro tipo
     if (_etiquetas && !_prospectos) {
       query = query.where('tipo', isEqualTo: 'Etiqueta');
     } else if (_prospectos && !_etiquetas) {
       query = query.where('tipo', isEqualTo: 'Prospecto');
     }
 
-    // Filtro idioma
     if (_espanol && !_ingles) {
       query = query.where('idioma', isEqualTo: 'ES');
     } else if (_ingles && !_espanol) {
@@ -54,7 +55,6 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
     final snapshot = await query.get();
     List<QueryDocumentSnapshot> docs = snapshot.docs;
 
-    // Filtro nombre
     final nombre = _nombreController.text.trim().toLowerCase();
     if (nombre.isNotEmpty) {
       docs = docs.where((d) {
@@ -63,7 +63,6 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
       }).toList();
     }
 
-    // Filtro stock
     if (_conStock && !_sinStock) {
       docs = docs.where((d) {
         final data = d.data() as Map<String, dynamic>;
@@ -73,6 +72,23 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
       docs = docs.where((d) {
         final data = d.data() as Map<String, dynamic>;
         return (data['stockActual'] ?? 0) == 0;
+      }).toList();
+    }
+
+    if (_prefijo65 || _prefijo67 || _prefijo68) {
+      docs = docs.where((d) {
+        final data = d.data() as Map<String, dynamic>;
+        final stockPorDestino = Map<String, dynamic>.from(
+          data['stockPorDestino'] ?? {},
+        );
+        if (_prefijo65 && data['tipo'] == 'Prospecto') return true;
+        if (_prefijo67 &&
+            (stockPorDestino.containsKey('todos') ||
+                stockPorDestino.containsKey('local'))) return true;
+        if (_prefijo68 &&
+            stockPorDestino.keys
+                .any((k) => k != 'todos' && k != 'local')) return true;
+        return false;
       }).toList();
     }
 
@@ -227,14 +243,14 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
                         child: GestureDetector(
                           onTap: () => setStateDialog(() => tipo = t),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
                               color: tipo == t
                                   ? AppColors.primary
                                   : Colors.white,
                               borderRadius: BorderRadius.circular(8),
-                              border:
-                                  Border.all(color: AppColors.primary),
+                              border: Border.all(color: AppColors.primary),
                             ),
                             child: Center(
                               child: Text(
@@ -271,14 +287,14 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
                           onTap: () =>
                               setStateDialog(() => idioma = i['value']!),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
                               color: idioma == i['value']
                                   ? AppColors.primary
                                   : Colors.white,
                               borderRadius: BorderRadius.circular(8),
-                              border:
-                                  Border.all(color: AppColors.primary),
+                              border: Border.all(color: AppColors.primary),
                             ),
                             child: Center(
                               child: Text(
@@ -438,10 +454,16 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
                 (v) => setState(() => _etiquetas = v)),
             _buildChip('Prospectos', _prospectos,
                 (v) => setState(() => _prospectos = v)),
-            _buildChip(
-                'Español', _espanol, (v) => setState(() => _espanol = v)),
+            _buildChip('Español', _espanol,
+                (v) => setState(() => _espanol = v)),
             _buildChip(
                 'Inglés', _ingles, (v) => setState(() => _ingles = v)),
+            _buildChip('Código 65', _prefijo65,
+                (v) => setState(() => _prefijo65 = v)),
+            _buildChip('Código 67', _prefijo67,
+                (v) => setState(() => _prefijo67 = v)),
+            _buildChip('Código 68', _prefijo68,
+                (v) => setState(() => _prefijo68 = v)),
           ],
         ),
       ],
@@ -453,8 +475,7 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
       onTap: () => onTap(!seleccionado),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: seleccionado ? AppColors.primary : Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -484,7 +505,9 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: bajominimo ? Colors.orange : AppColors.primary.withOpacity(0.3),
+          color: bajominimo
+              ? Colors.orange
+              : AppColors.primary.withOpacity(0.3),
           width: bajominimo ? 2 : 1,
         ),
       ),

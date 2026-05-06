@@ -21,14 +21,16 @@ class _ReportesScreenState extends State<ReportesScreen> {
   bool _etiquetas = false;
   bool _ingles = false;
   bool _espanol = false;
+  bool _prefijo65 = false;
+  bool _prefijo67 = false;
+  bool _prefijo68 = false;
   bool _generando = false;
 
   Future<void> _generarPDF() async {
     setState(() => _generando = true);
 
     try {
-      Query query =
-          FirebaseFirestore.instance.collection('productos');
+      Query query = FirebaseFirestore.instance.collection('productos');
 
       if (_etiquetas && !_prospectos) {
         query = query.where('tipo', isEqualTo: 'Etiqueta');
@@ -54,6 +56,23 @@ class _ReportesScreenState extends State<ReportesScreen> {
         docs = docs.where((d) {
           final data = d.data() as Map<String, dynamic>;
           return (data['stockActual'] ?? 0) == 0;
+        }).toList();
+      }
+
+      if (_prefijo65 || _prefijo67 || _prefijo68) {
+        docs = docs.where((d) {
+          final data = d.data() as Map<String, dynamic>;
+          final stockPorDestino = Map<String, dynamic>.from(
+            data['stockPorDestino'] ?? {},
+          );
+          if (_prefijo65 && data['tipo'] == 'Prospecto') return true;
+          if (_prefijo67 &&
+              (stockPorDestino.containsKey('todos') ||
+                  stockPorDestino.containsKey('local'))) return true;
+          if (_prefijo68 &&
+              stockPorDestino.keys
+                  .any((k) => k != 'todos' && k != 'local')) return true;
+          return false;
         }).toList();
       }
 
@@ -246,6 +265,12 @@ class _ReportesScreenState extends State<ReportesScreen> {
                               (v) => setState(() => _espanol = v)),
                           _buildChip('Inglés', _ingles,
                               (v) => setState(() => _ingles = v)),
+                          _buildChip('Código 65', _prefijo65,
+                              (v) => setState(() => _prefijo65 = v)),
+                          _buildChip('Código 67', _prefijo67,
+                              (v) => setState(() => _prefijo67 = v)),
+                          _buildChip('Código 68', _prefijo68,
+                              (v) => setState(() => _prefijo68 = v)),
                         ],
                       ),
                       const SizedBox(height: 32),
