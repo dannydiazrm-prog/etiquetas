@@ -22,9 +22,38 @@ class _ReportesScreenState extends State<ReportesScreen> {
   bool _ingles = false;
   bool _espanol = false;
   bool _prefijo65 = false;
+  bool _prefijo66 = false;
   bool _prefijo67 = false;
   bool _prefijo68 = false;
   bool _generando = false;
+
+  Future<Map<String, Map<String, int>>> _obtenerStockPorCodigo(
+    List<String> prefijos,
+  ) async {
+    // productoId -> { '65': cantidad, '66': cantidad, ... }
+    final Map<String, Map<String, int>> resultado = {};
+
+    final snapshot =
+        await FirebaseFirestore.instance.collection('recepciones').get();
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final codigo = (data['codigo'] ?? '').toString();
+      final productoId = data['productoId'] as String?;
+      final cantidad = (data['cantidad'] as num?)?.toInt() ?? 0;
+
+      if (productoId == null || codigo.length < 2) continue;
+
+      final prefijo = codigo.substring(0, 2);
+      if (!prefijos.contains(prefijo)) continue;
+
+      resultado.putIfAbsent(productoId, () => {});
+      resultado[productoId]![prefijo] =
+          (resultado[productoId]![prefijo] ?? 0) + cantidad;
+    }
+
+    return resultado;
+  }
 
   Future<void> _generarPDF() async {
     setState(() => _generando = true);
@@ -47,6 +76,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
       final snapshot = await query.get();
       List<QueryDocumentSnapshot> docs = snapshot.docs;
 
+      // Filtro stock
       if (_conStock && !_sinStock) {
         docs = docs.where((d) {
           final data = d.data() as Map<String, dynamic>;
@@ -59,21 +89,21 @@ class _ReportesScreenState extends State<ReportesScreen> {
         }).toList();
       }
 
-      if (_prefijo65 || _prefijo67 || _prefijo68) {
-        docs = docs.where((d) {
-          final data = d.data() as Map<String, dynamic>;
-          final stockPorDestino = Map<String, dynamic>.from(
-            data['stockPorDestino'] ?? {},
-          );
-          if (_prefijo65 && data['tipo'] == 'Prospecto') return true;
-          if (_prefijo67 &&
-              (stockPorDestino.containsKey('todos') ||
-                  stockPorDestino.containsKey('local'))) return true;
-          if (_prefijo68 &&
-              stockPorDestino.keys
-                  .any((k) => k != 'todos' && k != 'local')) return true;
-          return false;
-        }).toList();
+      // Filtro por código
+      final prefijosActivos = [
+        if (_prefijo65) '65',
+        if (_prefijo66) '66',
+        if (_prefijo67) '67',
+        if (_prefijo68) '68',
+      ];
+
+      Map<String, Map<String, int>> stockPorCodigo = {};
+      if (prefijosActivos.isNotEmpty) {
+        stockPorCodigo = await _obtenerStockPorCodigo(prefijosActivos);
+        // Solo productos que tengan recepciones con esos prefijos
+        docs = docs
+            .where((d) => stockPorCodigo.containsKey(d.id))
+            .toList();
       }
 
       final pdf = pw.Document();
@@ -115,6 +145,14 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   color: PdfColor.fromHex('#0c6246'),
                 ),
               ),
+              if (prefijosActivos.isNotEmpty)
+                pw.Text(
+                  'Filtro código: ${prefijosActivos.map((p) => 'Cód. $p').join(', ')}',
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColor.fromHex('#0c6246'),
+                  ),
+                ),
               pw.Divider(color: PdfColor.fromHex('#0c6246')),
               pw.SizedBox(height: 8),
             ],
@@ -149,26 +187,40 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       'NOMBRE',
                       'TIPO',
                       'IDIOMA',
-                      'STOCK ACTUAL',
+                      'STOCK',
                       'STOCK MÍNIMO',
                     ]
-                        .map((h) => pw.Padding(
-                              padding: const pw.EdgeInsets.all(8),
-                              child: pw.Text(
-                                h,
-                                style: pw.TextStyle(
-                                  color: PdfColors.white,
-                                  fontWeight: pw.FontWeight.bold,
-                                  fontSize: 10,
-                                ),
+                        .map(
+                          (h) => pw.Padding(
+                            padding: const pw.EdgeInsets.all(8),
+                            child: pw.Text(
+                              h,
+                              style: pw.TextStyle(
+                                color: PdfColors.white,
+                                fontWeight: pw.FontWeight.bold,
+                                fontSize: 10,
                               ),
-                            ))
+                            ),
+                          ),
+                        )
                         .toList(),
                   ),
                   ...docs.map((doc) {
                     final data = doc.data() as Map<String, dynamic>;
-                    final stock = data['stockActual'] ?? 0;
-                    final bajominimo = stock < 1000;
+
+                    // Calcular stock a mostrar
+                    int stockMostrar;
+                    if (prefijosActivos.isNotEmpty &&
+                        stockPorCodigo.containsKey(doc.id)) {
+                      stockMostrar = stockPorCodigo[doc.id]!
+                          .values
+                          .fold(0, (sum, v) => sum + v);
+                    } else {
+                      stockMostrar = (data['stockActual'] as num?)?.toInt() ?? 0;
+                    }
+
+                    final bajominimo = stockMostrar < 1000;
+
                     return pw.TableRow(
                       decoration: pw.BoxDecoration(
                         color: bajominimo
@@ -179,16 +231,18 @@ class _ReportesScreenState extends State<ReportesScreen> {
                         data['nombre'] ?? '',
                         data['tipo'] ?? '',
                         data['idioma'] ?? '',
-                        stock.toString(),
+                        stockMostrar.toString(),
                         '1000',
                       ]
-                          .map((v) => pw.Padding(
-                                padding: const pw.EdgeInsets.all(8),
-                                child: pw.Text(
-                                  v,
-                                  style: const pw.TextStyle(fontSize: 10),
-                                ),
-                              ))
+                          .map(
+                            (v) => pw.Padding(
+                              padding: const pw.EdgeInsets.all(8),
+                              child: pw.Text(
+                                v,
+                                style: const pw.TextStyle(fontSize: 10),
+                              ),
+                            ),
+                          )
                           .toList(),
                     );
                   }),
@@ -267,6 +321,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
                               (v) => setState(() => _ingles = v)),
                           _buildChip('Código 65', _prefijo65,
                               (v) => setState(() => _prefijo65 = v)),
+                          _buildChip('Código 66', _prefijo66,
+                              (v) => setState(() => _prefijo66 = v)),
                           _buildChip('Código 67', _prefijo67,
                               (v) => setState(() => _prefijo67 = v)),
                           _buildChip('Código 68', _prefijo68,
@@ -282,7 +338,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
                           icon: const Icon(Icons.picture_as_pdf_outlined),
                           label: _generando
                               ? const CircularProgressIndicator(
-                                  color: Colors.white)
+                                  color: Colors.white,
+                                )
                               : const Text(
                                   'GENERAR PDF',
                                   style: TextStyle(

@@ -26,6 +26,34 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
   List<QueryDocumentSnapshot> _resultados = [];
   bool _buscando = false;
   bool _buscado = false;
+  Map<String, Map<String, int>> _stockPorCodigo = {};
+  List<String> _prefijosActivos = [];
+
+  Future<Map<String, Map<String, int>>> _obtenerStockPorCodigo(
+    List<String> prefijos,
+  ) async {
+    final Map<String, Map<String, int>> resultado = {};
+    final snapshot =
+        await FirebaseFirestore.instance.collection('recepciones').get();
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final codigo = (data['codigo'] ?? '').toString();
+      final productoId = data['productoId'] as String?;
+      final cantidad = (data['cantidad'] as num?)?.toInt() ?? 0;
+
+      if (productoId == null || codigo.length < 2) continue;
+
+      final prefijo = codigo.substring(0, 2);
+      if (!prefijos.contains(prefijo)) continue;
+
+      resultado.putIfAbsent(productoId, () => {});
+      resultado[productoId]![prefijo] =
+          (resultado[productoId]![prefijo] ?? 0) + cantidad;
+    }
+
+    return resultado;
+  }
 
   @override
   void dispose() {
@@ -76,31 +104,32 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
       }).toList();
     }
 
-    if (_prefijo65 || _prefijo66 || _prefijo67 || _prefijo68) {
-      docs = docs.where((d) {
-        final data = d.data() as Map<String, dynamic>;
-        final stockPorDestino = Map<String, dynamic>.from(
-          data['stockPorDestino'] ?? {},
-        );
-        if (_prefijo65 && data['tipo'] == 'Prospecto') return true;
-        if (_prefijo66 &&
-            (stockPorDestino.containsKey('todos') ||
-                stockPorDestino.containsKey('local'))) return true;
-        if (_prefijo67 &&
-            (stockPorDestino.containsKey('todos') ||
-                stockPorDestino.containsKey('local'))) return true;
-        if (_prefijo68 &&
-            stockPorDestino.keys
-                .any((k) => k != 'todos' && k != 'local')) return true;
-        return false;
-      }).toList();
-    }
+    final prefijosActivos = [
+      if (_prefijo65) '65',
+      if (_prefijo66) '66',
+      if (_prefijo67) '67',
+      if (_prefijo68) '68',
+    ];
 
-    setState(() {
-      _resultados = docs;
-      _buscando = false;
-      _buscado = true;
-    });
+    if (prefijosActivos.isNotEmpty) {
+      final stockPorCodigo = await _obtenerStockPorCodigo(prefijosActivos);
+      docs = docs.where((d) => stockPorCodigo.containsKey(d.id)).toList();
+      setState(() {
+        _resultados = docs;
+        _stockPorCodigo = stockPorCodigo;
+        _prefijosActivos = prefijosActivos;
+        _buscando = false;
+        _buscado = true;
+      });
+    } else {
+      setState(() {
+        _resultados = docs;
+        _stockPorCodigo = {};
+        _prefijosActivos = [];
+        _buscando = false;
+        _buscado = true;
+      });
+    }
   }
 
   Future<void> _eliminar(QueryDocumentSnapshot doc) async {
@@ -507,29 +536,16 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
     int stockMostrar;
     String? etiquetaCodigo;
 
-    if (_prefijo65 && !_prefijo66 && !_prefijo67 && !_prefijo68) {
-      stockMostrar = data['stockActual'] ?? 0;
-      etiquetaCodigo = '65';
-    } else if (_prefijo66 && !_prefijo65 && !_prefijo67 && !_prefijo68) {
-      final stockTodos = (stockPorDestino['todos'] as num?)?.toInt() ?? 0;
-      final stockLocal = (stockPorDestino['local'] as num?)?.toInt() ?? 0;
-      stockMostrar = stockTodos + stockLocal;
-      etiquetaCodigo = '66';
-    } else if (_prefijo67 && !_prefijo65 && !_prefijo66 && !_prefijo68) {
-      final stockTodos = (stockPorDestino['todos'] as num?)?.toInt() ?? 0;
-      final stockLocal = (stockPorDestino['local'] as num?)?.toInt() ?? 0;
-      stockMostrar = stockTodos + stockLocal;
-      etiquetaCodigo = '67';
-    } else if (_prefijo68 && !_prefijo65 && !_prefijo66 && !_prefijo67) {
-      stockMostrar = stockPorDestino.entries
-          .where((e) => e.key != 'todos' && e.key != 'local')
-          .fold<int>(0, (sum, e) => sum + ((e.value as num).toInt()));
-      etiquetaCodigo = '68';
+    if (_prefijosActivos.isNotEmpty && _stockPorCodigo.containsKey(doc.id)) {
+      stockMostrar = _stockPorCodigo[doc.id]!
+          .values
+          .fold(0, (sum, v) => sum + v);
+      etiquetaCodigo = _prefijosActivos.join(', ');
     } else {
-      stockMostrar = data['stockActual'] ?? 0;
+      stockMostrar = (data['stockActual'] as num?)?.toInt() ?? 0;
       etiquetaCodigo = null;
     }
-
+	
     final bajominimo = stockMostrar < 1000;
 
     return Container(
