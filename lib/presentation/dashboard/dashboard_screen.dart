@@ -53,7 +53,7 @@ class _Header extends StatelessWidget {
             ),
           ),
           IconButton(
-            onPressed: () => context.go('/perfil'),
+            onPressed: () => context.push('/perfil'),
             icon: const CircleAvatar(
               backgroundColor: Colors.black,
               child: Icon(Icons.person, color: Colors.white),
@@ -104,7 +104,7 @@ class _Body extends StatelessWidget {
       width: double.infinity,
       height: 80,
       child: ElevatedButton(
-        onPressed: () => context.go(button.route),
+        onPressed: () => context.push(button.route),
         child: Text(
           button.label,
           style: const TextStyle(
