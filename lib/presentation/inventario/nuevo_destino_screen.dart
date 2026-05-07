@@ -96,7 +96,7 @@ class _NuevoDestinoScreenState extends State<NuevoDestinoScreen> {
                       const SizedBox(height: 12),
                       TextField(
                         controller: _nombreController,
-                        textCapitalization: TextCapitalization.words,
+                        textCapitalization: TextCapitalization.sentences,
                         decoration: InputDecoration(
                           hintText: 'Ej: Fondilac, Riegos Modernos',
                           filled: true,

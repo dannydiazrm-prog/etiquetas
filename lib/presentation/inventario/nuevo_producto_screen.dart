@@ -127,7 +127,7 @@ class _NuevoProductoScreenState extends State<NuevoProductoScreen> {
                       const SizedBox(height: 12),
                       TextField(
                         controller: _nombreController,
-                        textCapitalization: TextCapitalization.words,
+                        textCapitalization: TextCapitalization.sentences,
                         decoration: InputDecoration(
                           hintText: 'Ej: Oximed 50 ml',
                           filled: true,

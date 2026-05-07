@@ -40,78 +40,88 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/retirados',
       builder: (context, state) => const RetiradosScreen(),
-    ),
-    GoRoute(
-      path: '/retirados/nuevo',
-      builder: (context, state) => const NuevoRetiroScreen(),
-    ),
-    GoRoute(
-      path: '/retirados/pendientes',
-      builder: (context, state) => const PendientesScreen(),
-    ),
-    GoRoute(
-      path: '/retirados/del-dia',
-      builder: (context, state) => const RetirosDiaScreen(),
-    ),
-    GoRoute(
-      path: '/retirados/historial',
-      builder: (context, state) => const HistorialLoteScreen(),
+      routes: [
+        GoRoute(
+          path: 'nuevo',
+          builder: (context, state) => const NuevoRetiroScreen(),
+        ),
+        GoRoute(
+          path: 'pendientes',
+          builder: (context, state) => const PendientesScreen(),
+        ),
+        GoRoute(
+          path: 'del-dia',
+          builder: (context, state) => const RetirosDiaScreen(),
+        ),
+        GoRoute(
+          path: 'historial',
+          builder: (context, state) => const HistorialLoteScreen(),
+        ),
+      ],
     ),
     GoRoute(
       path: '/recibidos',
       builder: (context, state) => const RecibidosScreen(),
-    ),
-    GoRoute(
-      path: '/recibidos/nuevo',
-      builder: (context, state) => const RecibirProductoScreen(),
-    ),
-    GoRoute(
-      path: '/recibidos/historial',
-      builder: (context, state) => const HistorialRecepcionesScreen(),
+      routes: [
+        GoRoute(
+          path: 'nuevo',
+          builder: (context, state) => const RecibirProductoScreen(),
+        ),
+        GoRoute(
+          path: 'historial',
+          builder: (context, state) => const HistorialRecepcionesScreen(),
+        ),
+      ],
     ),
     GoRoute(
       path: '/ajustes',
       builder: (context, state) => const AjustesScreen(),
-    ),
-    GoRoute(
-      path: '/ajustes/novedad',
-      builder: (context, state) => const HojaAjusteScreen(),
-    ),
-    GoRoute(
-      path: '/ajustes/inventario',
-      builder: (context, state) => const AjusteInventarioScreen(),
-    ),
-    GoRoute(
-      path: '/ajustes/historial',
-      builder: (context, state) => const HistorialAjustesScreen(),
+      routes: [
+        GoRoute(
+          path: 'novedad',
+          builder: (context, state) => const HojaAjusteScreen(),
+        ),
+        GoRoute(
+          path: 'inventario',
+          builder: (context, state) => const AjusteInventarioScreen(),
+        ),
+        GoRoute(
+          path: 'historial',
+          builder: (context, state) => const HistorialAjustesScreen(),
+        ),
+      ],
     ),
     GoRoute(
       path: '/inventario',
       builder: (context, state) => const InventarioScreen(),
-    ),
-    GoRoute(
-      path: '/inventario/nuevo-producto',
-      builder: (context, state) => const NuevoProductoScreen(),
-    ),
-    GoRoute(
-      path: '/inventario/nuevo-destino',
-      builder: (context, state) => const NuevoDestinoScreen(),
-    ),
-    GoRoute(
-      path: '/inventario/toma',
-      builder: (context, state) => const TomaInventarioScreen(),
-    ),
-    GoRoute(
-      path: '/inventario/toma/productos',
-      builder: (context, state) => const VerProductosScreen(),
-    ),
-    GoRoute(
-      path: '/inventario/toma/reportes',
-      builder: (context, state) => const ReportesScreen(),
-    ),
-    GoRoute(
-      path: '/inventario/stock',
-      builder: (context, state) => const ControlStockScreen(),
+      routes: [
+        GoRoute(
+          path: 'nuevo-producto',
+          builder: (context, state) => const NuevoProductoScreen(),
+        ),
+        GoRoute(
+          path: 'nuevo-destino',
+          builder: (context, state) => const NuevoDestinoScreen(),
+        ),
+        GoRoute(
+          path: 'toma',
+          builder: (context, state) => const TomaInventarioScreen(),
+          routes: [
+            GoRoute(
+              path: 'productos',
+              builder: (context, state) => const VerProductosScreen(),
+            ),
+            GoRoute(
+              path: 'reportes',
+              builder: (context, state) => const ReportesScreen(),
+            ),
+          ],
+        ),
+        GoRoute(
+          path: 'stock',
+          builder: (context, state) => const ControlStockScreen(),
+        ),
+      ],
     ),
   ],
 );

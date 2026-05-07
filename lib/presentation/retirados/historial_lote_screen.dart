@@ -37,17 +37,22 @@ class _HistorialLoteScreenState extends State<HistorialLoteScreen> {
     });
 
     final snapshot = await FirebaseFirestore.instance
-        .collection('retiros')
-        .where('lote', isEqualTo: lote)
-        .orderBy('fecha', descending: false)
-        .get();
+    .collection('retiros')
+    .where('lote', isEqualTo: lote)
+    .get();
+
+final docs = snapshot.docs..sort((a, b) {
+  final fechaA = (a.data() as Map<String, dynamic>)['fecha'] as Timestamp?;
+  final fechaB = (b.data() as Map<String, dynamic>)['fecha'] as Timestamp?;
+  if (fechaA == null || fechaB == null) return 0;
+  return fechaA.compareTo(fechaB);
+});
 
     setState(() {
-      _resultados = snapshot.docs;
-      _buscando = false;
-      _buscado = true;
-    });
-  }
+  _resultados = docs;
+  _buscando = false;
+  _buscado = true;
+});
 
   String _formatFechaHora(Timestamp? ts) {
     if (ts == null) return '-';
@@ -279,7 +284,7 @@ class _HistorialLoteScreenState extends State<HistorialLoteScreen> {
                           child: TextField(
                             controller: _loteController,
                             textCapitalization:
-                                TextCapitalization.characters,
+                                TextCapitalization.sentences,
                             decoration: InputDecoration(
                               hintText: '',
                               prefixIcon: const Icon(

@@ -164,22 +164,15 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
     );
 
     // Determinar de qué destino descontar
-    String claveDescuento = _destinoSeleccionadoId!;
-    int stockDisponible =
-        (stockPorDestino[claveDescuento] as num?)?.toInt() ?? 0;
+    final claveDescuento = _destinoSeleccionadoId!;
+final stockDisponible =
+    (stockPorDestino[claveDescuento] as num?)?.toInt() ?? 0;
 
-    // Si no hay stock en ese destino, buscar en Todos automáticamente
-    if (stockDisponible <= 0 && claveDescuento != 'todos') {
-      claveDescuento = 'todos';
-      stockDisponible =
-          (stockPorDestino['todos'] as num?)?.toInt() ?? 0;
-    }
-
-    if (cantidadEntregada > stockDisponible) {
-      setState(() =>
-          _error = 'Stock insuficiente para este destino: $stockDisponible');
-      return;
-    }
+if (cantidadEntregada > stockDisponible) {
+  setState(() =>
+      _error = 'Stock insuficiente para este destino: $stockDisponible');
+  return;
+}
 
     setState(() {
       _guardando = true;
@@ -498,7 +491,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         _buildTextField(
           controller: _companeroController,
           hint: 'Nombre del compañero',
-          capitalization: TextCapitalization.words,
+          capitalization: TextCapitalization.sentences,
         ),
         const SizedBox(height: 20),
 
@@ -507,7 +500,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         _buildTextField(
           controller: _loteController,
           hint: '',
-          capitalization: TextCapitalization.characters,
+          capitalization: TextCapitalization.sentences,
         ),
         const SizedBox(height: 20),
 
@@ -686,7 +679,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
     required TextEditingController controller,
     required String hint,
     TextInputType teclado = TextInputType.text,
-    TextCapitalization capitalization = TextCapitalization.none,
+    TextCapitalization capitalization = TextCapitalization.sentences,
     ValueChanged<String>? onChanged,
   }) {
     return TextField(

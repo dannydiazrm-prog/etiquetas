@@ -152,14 +152,23 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
         data['stockPorDestino'] ?? {},
       );
 
-      String destinoClave;
-      if (destinosHabilitados.contains('todos')) {
-        destinoClave = 'todos';
-      } else if (destinosHabilitados.isNotEmpty) {
-        destinoClave = destinosHabilitados.first;
-      } else {
-        destinoClave = 'todos';
-      }
+      if (destinosHabilitados.isEmpty) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Seleccioná al menos un destino'),
+      backgroundColor: Colors.red,
+    ),
+  );
+  setState(() => _guardando = false);
+  return;
+}
+
+final String destinoClave;
+if (destinosHabilitados.contains('todos')) {
+  destinoClave = 'todos';
+} else {
+  destinoClave = destinosHabilitados.first;
+}
 
       final stockActualDestino =
           (stockPorDestino[destinoClave] ?? 0) as int;
@@ -434,40 +443,61 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ..._destinos.map((d) {
-                    final id = d['id'] as String;
-                    final nombre = d['nombre'] as String;
-                    final activo = _destinosSeleccionados[id] ?? false;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: activo
-                            ? AppColors.primary.withOpacity(0.05)
-                            : Colors.grey[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: activo
-                              ? AppColors.primary
-                              : Colors.grey.shade300,
-                        ),
-                      ),
-                      child: SwitchListTile(
-                        value: activo,
-                        activeColor: AppColors.primary,
-                        title: Text(
-                          nombre,
-                          style: TextStyle(
-                            color: activo
-                                ? AppColors.primary
-                                : Colors.grey[600],
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        onChanged: (v) =>
-                            setState(() => _destinosSeleccionados[id] = v),
-                      ),
-                    );
-                  }),
+                  Container(
+  decoration: BoxDecoration(
+    color: Colors.grey[50],
+    borderRadius: BorderRadius.circular(12),
+    border: Border.all(color: AppColors.primary),
+  ),
+  child: ExpansionTile(
+    title: Text(
+      _destinosSeleccionados.entries.any((e) => e.value)
+          ? _destinos
+              .where((d) =>
+                  _destinosSeleccionados[d['id'] as String] == true)
+              .map((d) => d['nombre'] as String)
+              .join(', ')
+          : 'Seleccioná los destinos',
+      style: TextStyle(
+        color: _destinosSeleccionados.entries.any((e) => e.value)
+            ? AppColors.primary
+            : Colors.grey[500],
+        fontWeight: FontWeight.w600,
+        fontSize: 14,
+      ),
+    ),
+    iconColor: AppColors.primary,
+    collapsedIconColor: AppColors.primary,
+    children: _destinos.map((d) {
+      final id = d['id'] as String;
+      final nombre = d['nombre'] as String;
+      final activo = _destinosSeleccionados[id] ?? false;
+      return Container(
+        decoration: BoxDecoration(
+          color: activo
+              ? AppColors.primary.withOpacity(0.05)
+              : Colors.white,
+          border: Border(
+            top: BorderSide(color: Colors.grey.shade200),
+          ),
+        ),
+        child: SwitchListTile(
+          value: activo,
+          activeColor: AppColors.primary,
+          title: Text(
+            nombre,
+            style: TextStyle(
+              color: activo ? AppColors.primary : Colors.grey[600],
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          onChanged: (v) =>
+              setState(() => _destinosSeleccionados[id] = v),
+        ),
+      );
+    }).toList(),
+  ),
+),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,

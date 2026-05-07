@@ -264,7 +264,7 @@ class _HojaAjusteScreenState extends State<HojaAjusteScreen> {
             Expanded(
               child: TextField(
                 controller: _busquedaController,
-                textCapitalization: TextCapitalization.characters,
+                textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
                   hintText: 'Lote o compañero...',
                   prefixIcon:
