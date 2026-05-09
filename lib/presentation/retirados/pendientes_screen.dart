@@ -121,17 +121,28 @@ class _PendientesScreenState extends State<PendientesScreen> {
 
                   // Devolver stock al depósito
                   final productoRef = FirebaseFirestore.instance
-                      .collection('productos')
-                      .doc(data['productoId']);
-                  final productoDoc = await productoRef.get();
-                  final stockActual =
-                      ((productoDoc.data()?['stockActual'] ?? 0) as num)
-                          .toInt();
+    .collection('productos')
+    .doc(data['productoId']);
+final productoDoc = await productoRef.get();
+final productoData = productoDoc.data() as Map<String, dynamic>;
+final stockActual =
+    ((productoData['stockActual'] ?? 0) as num).toInt();
+final stockPorDestino = Map<String, dynamic>.from(
+  productoData['stockPorDestino'] ?? {},
+);
 
-                  final batch = FirebaseFirestore.instance.batch();
+// Devolver al destino original del retiro
+final destinoId = data['destinoId'] as String? ?? 'todos';
+final stockActualDestino =
+    (stockPorDestino[destinoId] as num?)?.toInt() ?? 0;
+stockPorDestino[destinoId] = stockActualDestino + devuelta;
 
-                  batch.update(productoRef,
-                      {'stockActual': stockActual + devuelta});
+final batch = FirebaseFirestore.instance.batch();
+
+batch.update(productoRef, {
+  'stockActual': stockActual + devuelta,
+  'stockPorDestino': stockPorDestino,
+});
 
                   batch.update(
                     FirebaseFirestore.instance

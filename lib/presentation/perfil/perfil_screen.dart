@@ -209,8 +209,88 @@ class _PerfilScreenState extends State<PerfilScreen> {
       ),
     );
   }
+  
+Future<void> _accederGestionDatos(BuildContext context) async {
+    String pin = '';
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'GESTIÓN DE DATOS',
+          style: TextStyle(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w900,
+            fontSize: 16,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Ingresá tu PIN para continuar',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              obscureText: true,
+              decoration: InputDecoration(
+                hintText: '****',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                counterText: '',
+              ),
+              onChanged: (v) => pin = v,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'ENTRAR',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
 
-  Widget _buildHeader(BuildContext context) {
+    if (confirmado != true) return;
+
+    final pinDoc = await FirebaseFirestore.instance
+        .collection('config')
+        .doc('pin')
+        .get();
+    final pinGuardado = pinDoc.data()?['valor'] ?? '';
+
+    if (pin != pinGuardado) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PIN incorrecto'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (mounted) context.push('/perfil/gestion');
+  }
+  
+Widget _buildHeader(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
     return Container(
       color: AppColors.primary,
@@ -227,14 +307,20 @@ class _PerfilScreenState extends State<PerfilScreen> {
             onPressed: () => context.go('/'),
           ),
           const SizedBox(width: 8),
-          Text(
-            'PERFIL',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: Breakpoints.isMobile(context) ? 20 : 28,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.2,
+          Expanded(
+            child: Text(
+              'PERFIL',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: Breakpoints.isMobile(context) ? 20 : 28,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white, size: 20),
+            onPressed: () => _accederGestionDatos(context),
           ),
         ],
       ),

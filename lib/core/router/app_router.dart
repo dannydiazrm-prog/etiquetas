@@ -1,6 +1,10 @@
 import 'package:go_router/go_router.dart';
 import '../../presentation/auth/pin_screen.dart';
 import '../../presentation/perfil/perfil_screen.dart';
+import '../../presentation/perfil/gestion_datos_screen.dart';
+import '../../presentation/perfil/gestion_recepciones_screen.dart';
+import '../../presentation/perfil/gestion_ajustes_screen.dart';
+import '../../presentation/perfil/eliminar_producto_screen.dart';
 import '../../presentation/dashboard/dashboard_screen.dart';
 import '../../presentation/retirados/retirados_screen.dart';
 import '../../presentation/retirados/nuevo_retiro_screen.dart';
@@ -32,6 +36,26 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/perfil',
       builder: (context, state) => const PerfilScreen(),
+      routes: [
+        GoRoute(
+          path: 'gestion',
+          builder: (context, state) => const GestionDatosScreen(),
+          routes: [
+            GoRoute(
+              path: 'recepciones',
+              builder: (context, state) => const GestionRecepcionesScreen(),
+            ),
+            GoRoute(
+              path: 'ajustes',
+              builder: (context, state) => const GestionAjustesScreen(),
+            ),
+            GoRoute(
+              path: 'eliminar-producto',
+              builder: (context, state) => const EliminarProductoScreen(),
+            ),
+          ],
+        ),
+      ],
     ),
     GoRoute(
       path: '/',
