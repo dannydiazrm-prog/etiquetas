@@ -8,7 +8,12 @@ class RecibidosScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) context.go('/');
+      },
+      child: Scaffold(
       body: Column(
         children: [
           _Header(),
@@ -130,6 +135,7 @@ class _Body extends StatelessWidget {
           ],
         ),
       ),
+	  ),
     );
   }
 }
