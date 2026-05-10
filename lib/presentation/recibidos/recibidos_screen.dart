@@ -35,7 +35,7 @@ class _Header extends StatelessWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => context.go('/'),
+            onPressed: () => context.pop(),
           ),
           const SizedBox(width: 8),
           Text(
