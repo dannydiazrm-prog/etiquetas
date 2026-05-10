@@ -14,11 +14,12 @@ class InventarioScreen extends StatelessWidget {
         if (!didPop) context.go('/');
       },
       child: Scaffold(
-      body: Column(
-        children: [
-          _Header(),
-          Expanded(child: _Body()),
-        ],
+        body: Column(
+          children: [
+            _Header(),
+            Expanded(child: _Body()),
+          ],
+        ),
       ),
     );
   }
@@ -147,7 +148,6 @@ class _Body extends StatelessWidget {
           ],
         ),
       ),
-	  ),
     );
   }
 }
