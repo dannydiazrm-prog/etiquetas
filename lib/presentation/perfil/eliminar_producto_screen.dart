@@ -89,7 +89,7 @@ class _EliminarProductoScreenState extends State<EliminarProductoScreen> {
             Text('Stock actual: ${data['stockActual'] ?? 0}'),
             const SizedBox(height: 12),
             const Text(
-              'Se eliminarán el producto y TODOS sus registros: recepciones, retiros y ajustes. Esta acción es completamente irreversible.',
+              'Se eliminarán el producto y todos sus registros: recepciones, retiros y ajustes. Esta acción es completamente irreversible.',
               style: TextStyle(
                 color: Colors.red,
                 fontSize: 12,
@@ -280,7 +280,7 @@ class _EliminarProductoScreenState extends State<EliminarProductoScreen> {
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Esta acción elimina el producto y TODO su historial. Es irreversible.',
+                              'Esta acción elimina el producto y todo su historial. Es irreversible.',
                               style: TextStyle(
                                 color: Colors.red,
                                 fontSize: 12,
@@ -298,7 +298,7 @@ class _EliminarProductoScreenState extends State<EliminarProductoScreen> {
                           child: TextField(
                             controller: _nombreController,
                             decoration: InputDecoration(
-                              hintText: 'Buscar producto por nombre...',
+                              hintText: 'Buscar producto por nombre',
                               prefixIcon: const Icon(Icons.search,
                                   color: AppColors.primary),
                               filled: true,

@@ -100,7 +100,7 @@ class _PendientesScreenState extends State<PendientesScreen> {
               onPressed: () async {
                 final cantidad = int.tryParse(cantidadCtrl.text.trim());
                 if (cantidad == null || cantidad <= 0) {
-                  setStateDialog(() => error = 'Ingresá una cantidad válida');
+                  setStateDialog(() => error = 'Ingresa una cantidad válida');
                   return;
                 }
                 if (cantidad > pendiente) {
@@ -220,7 +220,7 @@ batch.update(productoRef, {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Seleccioná el motivo:',
+                'Selecciona el motivo:',
                 style: TextStyle(
                   color: AppColors.primary,
                   fontWeight: FontWeight.w600,

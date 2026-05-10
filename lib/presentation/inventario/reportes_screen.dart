@@ -315,7 +315,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                         ),
                         child: ExpansionTile(
                           title: const Text(
-                            'Tipo y idioma',
+                            'Tipo e idioma',
                             style: TextStyle(
                               color: AppColors.primary,
                               fontWeight: FontWeight.w600,

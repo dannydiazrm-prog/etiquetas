@@ -98,19 +98,19 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
   Future<void> _confirmar() async {
     final cantidad = int.tryParse(_cantidadController.text.trim());
     if (cantidad == null || cantidad <= 0) {
-      setState(() => _error = 'Ingresá una cantidad válida');
+      setState(() => _error = 'Ingresa una cantidad válida');
       return;
     }
     if (_tipoAjuste == null) {
-      setState(() => _error = 'Seleccioná si es suma o resta');
+      setState(() => _error = 'Selecciona si es suma o resta');
       return;
     }
     if (_motivo == null) {
-      setState(() => _error = 'Seleccioná un motivo');
+      setState(() => _error = 'Selecciona un motivo');
       return;
     }
     if (_motivo == 'Otro' && _otroController.text.trim().isEmpty) {
-      setState(() => _error = 'Describí el motivo');
+      setState(() => _error = 'Describe el motivo');
       return;
     }
 
@@ -119,7 +119,7 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
 
     if (_tipoAjuste == 'resta' && cantidad > stockActual) {
       setState(
-          () => _error = 'No podés restar más del stock actual: $stockActual');
+          () => _error = 'No puedes restar más del stock actual: $stockActual');
       return;
     }
 
@@ -173,7 +173,7 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
         context.go('/ajustes');
       }
     } catch (e) {
-      setState(() => _error = 'Error al guardar. Intentá de nuevo.');
+      setState(() => _error = 'Error al guardar. Intenta de nuevo.');
     }
 
     setState(() => _guardando = false);
@@ -206,7 +206,7 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'SELECCIONÁ EL PRODUCTO',
+          'SELECCIONA EL PRODUCTO',
           style: TextStyle(
             color: AppColors.primary,
             fontSize: 13,
@@ -218,7 +218,7 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
         TextField(
           controller: _nombreController,
           decoration: InputDecoration(
-            hintText: 'Buscar por nombre...',
+            hintText: 'Buscar por nombre',
             prefixIcon:
                 const Icon(Icons.search, color: AppColors.primary),
             filled: true,
@@ -245,7 +245,7 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
                 (v) => setState(() => _prospectos = v)),
             _buildChip('Español', _espanol,
                 (v) => setState(() => _espanol = v)),
-            _buildChip('Inglés', _ingles,
+            _buildChip('Ingles', _ingles,
                 (v) => setState(() => _ingles = v)),
           ],
         ),

@@ -82,7 +82,7 @@ class _PinScreenState extends State<PinScreen> {
                   ),
                   const SizedBox(height: 48),
                   const Text(
-                    'Ingresá tu PIN',
+                    'Ingresa tu PIN',
                     style: TextStyle(
                       color: AppColors.primary,
                       fontSize: 16,

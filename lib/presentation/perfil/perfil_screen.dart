@@ -227,7 +227,7 @@ Future<void> _accederGestionDatos(BuildContext context) async {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Ingresá tu PIN para continuar',
+              'Ingresa tu PIN para continuar',
               style: TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 16),

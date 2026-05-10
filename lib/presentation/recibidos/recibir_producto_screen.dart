@@ -122,7 +122,7 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
     if (cantidad == null || cantidad <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Ingresá una cantidad válida'),
+          content: Text('Ingresa una cantidad válida'),
           backgroundColor: Colors.red,
         ),
       );
@@ -132,7 +132,7 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
     if (codigo.isEmpty || codigo.length != 5 || int.tryParse(codigo) == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Ingresá los 5 dígitos del código'),
+          content: Text('Ingresa los 5 dígitos del código'),
           backgroundColor: Colors.red,
         ),
       );
@@ -155,7 +155,7 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
       if (destinosHabilitados.isEmpty) {
   ScaffoldMessenger.of(context).showSnackBar(
     const SnackBar(
-      content: Text('Seleccioná al menos un destino'),
+      content: Text('Selecciona al menos un destino'),
       backgroundColor: Colors.red,
     ),
   );
@@ -253,7 +253,7 @@ if (!usados.contains(prefijo)) {
   if (mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Error al guardar. Intentá de nuevo.'),
+        content: Text('Error al guardar. Intenta de nuevo.'),
         backgroundColor: Colors.red,
       ),
     );
@@ -476,7 +476,7 @@ if (!usados.contains(prefijo)) {
                   _destinosSeleccionados[d['id'] as String] == true)
               .map((d) => d['nombre'] as String)
               .join(', ')
-          : 'Seleccioná los destinos',
+          : 'Selecciona los destinos',
       style: TextStyle(
         color: _destinosSeleccionados.entries.any((e) => e.value)
             ? AppColors.primary
@@ -562,7 +562,7 @@ if (!usados.contains(prefijo)) {
         TextField(
           controller: _nombreController,
           decoration: InputDecoration(
-            hintText: 'Buscar por nombre...',
+            hintText: 'Buscar por nombre',
             prefixIcon:
                 const Icon(Icons.search, color: AppColors.primary),
             filled: true,
@@ -589,8 +589,8 @@ if (!usados.contains(prefijo)) {
                 (v) => setState(() => _prospectos = v)),
             _buildChip('Español', _espanol,
                 (v) => setState(() => _espanol = v)),
-            _buildChip(
-                'IN', _ingles, (v) => setState(() => _ingles = v)),
+            _buildChip('Ingles', _ingles, 
+			(v) => setState(() => _ingles = v)),
           ],
         ),
       ],

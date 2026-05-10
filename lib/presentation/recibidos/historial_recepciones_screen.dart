@@ -285,7 +285,7 @@ class _HistorialRecepcionesScreenState
                     TextField(
                       controller: _nombreController,
                       decoration: InputDecoration(
-                        hintText: 'Buscar por nombre de producto...',
+                        hintText: 'Nombre del producto',
                         prefixIcon: const Icon(Icons.search,
                             color: AppColors.primary),
                         filled: true,

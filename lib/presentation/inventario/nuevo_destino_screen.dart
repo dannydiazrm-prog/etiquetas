@@ -31,7 +31,7 @@ class _NuevoDestinoScreenState extends State<NuevoDestinoScreen> {
     final nombre = _nombreController.text.trim();
 
     if (nombre.isEmpty) {
-      setState(() => _error = 'Ingresá el nombre del destino');
+      setState(() => _error = 'Ingresa el nombre del destino');
       return;
     }
 

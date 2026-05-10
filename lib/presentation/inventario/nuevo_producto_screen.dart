@@ -28,15 +28,15 @@ class _NuevoProductoScreenState extends State<NuevoProductoScreen> {
     final nombre = _nombreController.text.trim();
 
     if (nombre.isEmpty) {
-      setState(() => _error = 'Ingresá el nombre del producto');
+      setState(() => _error = 'Ingresa el nombre del producto');
       return;
     }
     if (_tipo == null) {
-      setState(() => _error = 'Seleccioná el tipo');
+      setState(() => _error = 'Selecciona el tipo');
       return;
     }
     if (_idioma == null) {
-      setState(() => _error = 'Seleccioná el idioma');
+      setState(() => _error = 'Selecciona el idioma');
       return;
     }
 

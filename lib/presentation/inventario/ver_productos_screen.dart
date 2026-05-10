@@ -201,7 +201,7 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Ingresá tu PIN'),
+        title: const Text('Ingresa tu pin'),
         content: TextField(
           keyboardType: TextInputType.number,
           maxLength: 4,
@@ -468,7 +468,7 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
         TextField(
           controller: _nombreController,
           decoration: InputDecoration(
-            hintText: 'Buscar por nombre...',
+            hintText: 'Buscar por nombre',
             prefixIcon: const Icon(Icons.search, color: AppColors.primary),
             filled: true,
             fillColor: Colors.white,
@@ -491,7 +491,7 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
           ),
           child: ExpansionTile(
             title: const Text(
-              'Tipo y idioma',
+              'Tipo e idioma',
               style: TextStyle(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w600,

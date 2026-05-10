@@ -51,15 +51,7 @@ class _HojaAjusteScreenState extends State<HojaAjusteScreen> {
     });
 
     try {
-      // ─── CORRECCIÓN PRINCIPAL ──────────────────────────────────────────
-      // Se quitó .orderBy() de ambas queries para evitar que fallen por
-      // falta de índice compuesto en Firestore.
-      // El ordenamiento se hace en el cliente después de combinar resultados.
-      //
-      // También se unifica el texto a mayúsculas para el lote, y se busca
-      // el compañero con el texto tal como viene (case-sensitive en Firestore)
-      // pero también con la primera letra en mayúscula para cubrir más casos.
-      // ──────────────────────────────────────────────────────────────────
+
       final textoUpper = texto.toUpperCase();
       final textoCapitalizado =
           texto.isNotEmpty ? texto[0].toUpperCase() + texto.substring(1) : texto;
@@ -128,15 +120,15 @@ class _HojaAjusteScreenState extends State<HojaAjusteScreen> {
   Future<void> _confirmar() async {
     final cantidad = int.tryParse(_cantidadController.text.trim());
     if (cantidad == null || cantidad <= 0) {
-      setState(() => _error = 'Ingresá una cantidad válida');
+      setState(() => _error = 'Ingresa una cantidad válida');
       return;
     }
     if (_motivo == null) {
-      setState(() => _error = 'Seleccioná un motivo');
+      setState(() => _error = 'Selecciona un motivo');
       return;
     }
     if (_motivo == 'Otro' && _otroController.text.trim().isEmpty) {
-      setState(() => _error = 'Describí el motivo');
+      setState(() => _error = 'Describe el motivo');
       return;
     }
 
@@ -266,7 +258,7 @@ class _HojaAjusteScreenState extends State<HojaAjusteScreen> {
                 controller: _busquedaController,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
-                  hintText: 'Lote o compañero...',
+                  hintText: '',
                   prefixIcon:
                       const Icon(Icons.search, color: AppColors.primary),
                   filled: true,
@@ -550,7 +542,7 @@ class _HojaAjusteScreenState extends State<HojaAjusteScreen> {
           TextField(
             controller: _otroController,
             decoration: InputDecoration(
-              hintText: 'Describí el motivo...',
+              hintText: 'Describe el motivo',
               filled: true,
               fillColor: Colors.white,
               border: OutlineInputBorder(

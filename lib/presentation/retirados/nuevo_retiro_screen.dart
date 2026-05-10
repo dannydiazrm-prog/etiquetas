@@ -138,23 +138,23 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         int.tryParse(_cantidadEntregadaController.text.trim());
 
     if (companero.isEmpty) {
-      setState(() => _error = 'Ingresá el nombre del que retira');
+      setState(() => _error = 'Ingresa el nombre del que retira');
       return;
     }
     if (lote.isEmpty) {
-      setState(() => _error = 'Ingresá el número de lote');
+      setState(() => _error = 'Ingresa el número de lote');
       return;
     }
     if (_destinoSeleccionadoId == null) {
-      setState(() => _error = 'Seleccioná un destino');
+      setState(() => _error = 'Selecciona un destino');
       return;
     }
     if (cantidadEstimada == null || cantidadEstimada <= 0) {
-      setState(() => _error = 'Ingresá la cantidad estimada');
+      setState(() => _error = 'Ingresa la cantidad estimada');
       return;
     }
     if (cantidadEntregada == null || cantidadEntregada <= 0) {
-      setState(() => _error = 'Ingresá la cantidad entregada');
+      setState(() => _error = 'Ingresa la cantidad entregada');
       return;
     }
 
@@ -280,7 +280,7 @@ if (cantidadEntregada > stockDisponible) {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'SELECCIONÁ EL PRODUCTO',
+          'SELECCIONA EL PRODUCTO',
           style: TextStyle(
             color: AppColors.primary,
             fontSize: 13,
@@ -292,7 +292,7 @@ if (cantidadEntregada > stockDisponible) {
         TextField(
           controller: _nombreController,
           decoration: InputDecoration(
-            hintText: 'Buscar por nombre...',
+            hintText: 'Buscar por nombre',
             prefixIcon:
                 const Icon(Icons.search, color: AppColors.primary),
             filled: true,
@@ -495,7 +495,7 @@ if (cantidadEntregada > stockDisponible) {
         ),
         const SizedBox(height: 20),
 
-        _buildLabel('LOTE DEL PRODUCTO FINAL'),
+        _buildLabel('LOTE'),
         const SizedBox(height: 8),
         _buildTextField(
           controller: _loteController,
@@ -515,7 +515,7 @@ if (cantidadEntregada > stockDisponible) {
               border: Border.all(color: Colors.red),
             ),
             child: const Text(
-              'Este producto no tiene stock registrado por destino. Realizá una recepción primero.',
+              'Este producto no tiene stock registrado por destino. Realiza una recepción primero.',
               style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
             ),
           )
