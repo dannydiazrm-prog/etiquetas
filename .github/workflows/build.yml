@@ -27,7 +27,10 @@ jobs:
         run: flutter build apk --release
 
       - name: Build Web
-        run: flutter build web --release --base-href /etiquetas/
+        run: flutter build web --release --base-href /etiquetas/ --web-renderer html
+
+      - name: Create .nojekyll
+        run: touch build/web/.nojekyll
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -39,4 +42,3 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: build/web
-          branch: gh-pages
