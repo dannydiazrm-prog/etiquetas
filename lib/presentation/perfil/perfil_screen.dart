@@ -20,6 +20,16 @@ class _PerfilScreenState extends State<PerfilScreen> {
   bool _ocultarActual = true;
   bool _ocultarNuevo = true;
   bool _ocultarConfirm = true;
+  bool _sincronizando = false;
+  String _estadoSync = '';
+  int _pendientes = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Por ahora simulamos pendientes, luego conectamos con data_master
+    _pendientes = 0;
+  }
 
   @override
   void dispose() {
@@ -75,6 +85,26 @@ class _PerfilScreenState extends State<PerfilScreen> {
     setState(() => _loading = false);
   }
 
+  Future<void> _sincronizar() async {
+    setState(() {
+      _sincronizando = true;
+      _estadoSync = '';
+    });
+
+    try {
+      // TODO: conectar con DataMaster.sincronizar() cuando esté listo
+      await Future.delayed(const Duration(seconds: 2)); // placeholder
+      setState(() {
+        _pendientes = 0;
+        _estadoSync = 'Sincronización completada';
+      });
+    } catch (e) {
+      setState(() => _estadoSync = 'Error al sincronizar: $e');
+    }
+
+    setState(() => _sincronizando = false);
+  }
+
   void _cerrarSesion() {
     context.go('/pin');
   }
@@ -94,6 +124,97 @@ class _PerfilScreenState extends State<PerfilScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // SECCIÓN SINCRONIZACIÓN
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _pendientes > 0
+                                ? Colors.orange
+                                : AppColors.primary.withOpacity(0.3),
+                            width: _pendientes > 0 ? 2 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  _pendientes > 0
+                                      ? Icons.cloud_upload_outlined
+                                      : Icons.cloud_done_outlined,
+                                  color: _pendientes > 0
+                                      ? Colors.orange
+                                      : AppColors.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _pendientes > 0
+                                        ? '$_pendientes registro${_pendientes != 1 ? 's' : ''} pendiente${_pendientes != 1 ? 's' : ''} de sincronizar'
+                                        : 'Todo sincronizado con Firebase',
+                                    style: TextStyle(
+                                      color: _pendientes > 0
+                                          ? Colors.orange
+                                          : AppColors.primary,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_estadoSync.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                _estadoSync,
+                                style: TextStyle(
+                                  color: _estadoSync.contains('Error')
+                                      ? Colors.red
+                                      : Colors.green,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                onPressed: _sincronizando ? null : _sincronizar,
+                                icon: _sincronizando
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.sync),
+                                label: Text(
+                                  _sincronizando
+                                      ? 'SINCRONIZANDO...'
+                                      : 'SINCRONIZAR CON FIREBASE',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // SECCIÓN CAMBIAR PIN
                       const Text(
                         'CAMBIAR PIN',
                         style: TextStyle(
@@ -108,24 +229,24 @@ class _PerfilScreenState extends State<PerfilScreen> {
                         controller: _pinActualController,
                         label: 'PIN actual',
                         ocultar: _ocultarActual,
-                        onToggle: () => setState(
-                            () => _ocultarActual = !_ocultarActual),
+                        onToggle: () =>
+                            setState(() => _ocultarActual = !_ocultarActual),
                       ),
                       const SizedBox(height: 16),
                       _buildCampoPin(
                         controller: _pinNuevoController,
                         label: 'PIN nuevo',
                         ocultar: _ocultarNuevo,
-                        onToggle: () => setState(
-                            () => _ocultarNuevo = !_ocultarNuevo),
+                        onToggle: () =>
+                            setState(() => _ocultarNuevo = !_ocultarNuevo),
                       ),
                       const SizedBox(height: 16),
                       _buildCampoPin(
                         controller: _pinConfirmController,
                         label: 'Confirmar PIN nuevo',
                         ocultar: _ocultarConfirm,
-                        onToggle: () => setState(
-                            () => _ocultarConfirm = !_ocultarConfirm),
+                        onToggle: () =>
+                            setState(() => _ocultarConfirm = !_ocultarConfirm),
                       ),
                       const SizedBox(height: 24),
                       if (_mensaje.isNotEmpty)
@@ -209,8 +330,8 @@ class _PerfilScreenState extends State<PerfilScreen> {
       ),
     );
   }
-  
-Future<void> _accederGestionDatos(BuildContext context) async {
+
+  Future<void> _accederGestionDatos(BuildContext context) async {
     String pin = '';
     final confirmado = await showDialog<bool>(
       context: context,
@@ -289,8 +410,8 @@ Future<void> _accederGestionDatos(BuildContext context) async {
 
     if (mounted) context.push('/perfil/gestion');
   }
-  
-Widget _buildHeader(BuildContext context) {
+
+  Widget _buildHeader(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
     return Container(
       color: AppColors.primary,

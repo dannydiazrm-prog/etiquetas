@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/breakpoints.dart';
+import '../../core/data/data_master.dart';
 
 class VerProductosScreen extends StatefulWidget {
   const VerProductosScreen({super.key});
@@ -21,7 +21,7 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
   bool _espanol = false;
   Set<String> _prefijosSeleccionados = {};
   List<String> _prefijosUsados = [];
-  List<QueryDocumentSnapshot> _resultados = [];
+  List<Map<String, dynamic>> _resultados = [];
   bool _buscando = false;
   bool _buscado = false;
   Map<String, Map<String, int>> _stockPorCodigo = {};
@@ -40,29 +40,23 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
   }
 
   Future<void> _cargarPrefijos() async {
-    final doc = await FirebaseFirestore.instance
-        .collection('config')
-        .doc('prefijos')
-        .get();
-    final usados = (doc.data()?['usados'] ?? [])
-    .map((e) => e.toString())
-    .toList()
-    .cast<String>();
-    usados.sort();
-    setState(() => _prefijosUsados = usados);
+    final config = await DataMaster().obtenerConfig('prefijos');
+    final usados = (config?['usados'] as List<dynamic>? ?? [])
+        .map((e) => e.toString())
+        .toList()
+      ..sort();
+    if (mounted) setState(() => _prefijosUsados = usados);
   }
 
   Future<Map<String, Map<String, int>>> _obtenerStockPorCodigo(
     List<String> prefijos,
   ) async {
     final Map<String, Map<String, int>> resultado = {};
-    final snapshot =
-        await FirebaseFirestore.instance.collection('recepciones').get();
+    final recepciones = await DataMaster().obtenerRecepciones();
 
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
+    for (final data in recepciones) {
       final codigo = (data['codigo'] ?? '').toString();
-      final productoId = data['productoId'] as String?;
+      final productoId = data['productoId']?.toString();
       final cantidad = (data['cantidad'] as num?)?.toInt() ?? 0;
 
       if (productoId == null || codigo.length < 2) continue;
@@ -78,54 +72,56 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
     return resultado;
   }
 
+  String _docId(Map<String, dynamic> d) =>
+      d['firestoreId']?.toString() ?? d['id']?.toString() ?? '';
+
   Future<void> _buscar() async {
     setState(() {
       _buscando = true;
       _buscado = false;
     });
 
-    Query query = FirebaseFirestore.instance.collection('productos');
+    List<Map<String, dynamic>> docs = await DataMaster().obtenerProductos();
 
+    // Filtro tipo
     if (_etiquetas && !_prospectos) {
-      query = query.where('tipo', isEqualTo: 'Etiqueta');
+      docs = docs.where((d) => d['tipo'] == 'Etiqueta').toList();
     } else if (_prospectos && !_etiquetas) {
-      query = query.where('tipo', isEqualTo: 'Prospecto');
+      docs = docs.where((d) => d['tipo'] == 'Prospecto').toList();
     }
 
+    // Filtro idioma
     if (_espanol && !_ingles) {
-      query = query.where('idioma', isEqualTo: 'ES');
+      docs = docs.where((d) => d['idioma'] == 'ES').toList();
     } else if (_ingles && !_espanol) {
-      query = query.where('idioma', isEqualTo: 'EN');
+      docs = docs.where((d) => d['idioma'] == 'EN').toList();
     }
 
-    final snapshot = await query.get();
-    List<QueryDocumentSnapshot> docs = snapshot.docs;
-
+    // Filtro nombre
     final nombre = _nombreController.text.trim().toLowerCase();
     if (nombre.isNotEmpty) {
       docs = docs.where((d) {
-        final data = d.data() as Map<String, dynamic>;
-        return (data['nombre'] ?? '').toString().toLowerCase().contains(nombre);
+        return (d['nombre'] ?? '').toString().toLowerCase().contains(nombre);
       }).toList();
     }
 
+    // Filtro stock
     if (_conStock && !_sinStock) {
-      docs = docs.where((d) {
-        final data = d.data() as Map<String, dynamic>;
-        return (data['stockActual'] ?? 0) > 0;
-      }).toList();
+      docs = docs
+          .where((d) => ((d['stockActual'] as num?)?.toInt() ?? 0) > 0)
+          .toList();
     } else if (_sinStock && !_conStock) {
-      docs = docs.where((d) {
-        final data = d.data() as Map<String, dynamic>;
-        return (data['stockActual'] ?? 0) == 0;
-      }).toList();
+      docs = docs
+          .where((d) => ((d['stockActual'] as num?)?.toInt() ?? 0) == 0)
+          .toList();
     }
 
     final prefijosActivos = _prefijosSeleccionados.toList();
 
     if (prefijosActivos.isNotEmpty) {
       final stockPorCodigo = await _obtenerStockPorCodigo(prefijosActivos);
-      docs = docs.where((d) => stockPorCodigo.containsKey(d.id)).toList();
+      final idsConCodigo = stockPorCodigo.keys.toSet();
+      docs = docs.where((d) => idsConCodigo.contains(_docId(d))).toList();
       setState(() {
         _resultados = docs;
         _stockPorCodigo = stockPorCodigo;
@@ -144,9 +140,8 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
     }
   }
 
-  Future<void> _eliminar(QueryDocumentSnapshot doc) async {
-    final data = doc.data() as Map<String, dynamic>;
-    final stock = data['stockActual'] ?? 0;
+  Future<void> _eliminar(Map<String, dynamic> data) async {
+    final stock = (data['stockActual'] as num?)?.toInt() ?? 0;
 
     if (stock > 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -161,11 +156,8 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
     final pinIngresado = await _pedirPin();
     if (pinIngresado == null) return;
 
-    final pinDoc = await FirebaseFirestore.instance
-        .collection('config')
-        .doc('pin')
-        .get();
-    final pinGuardado = pinDoc.data()?['valor'] ?? '';
+    final pinConfig = await DataMaster().obtenerConfig('pin');
+    final pinGuardado = pinConfig?['valor']?.toString() ?? '';
 
     if (pinIngresado != pinGuardado) {
       if (mounted) {
@@ -179,12 +171,10 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
       return;
     }
 
-    await FirebaseFirestore.instance
-        .collection('productos')
-        .doc(doc.id)
-        .delete();
+    final id = _docId(data);
+    await DataMaster().eliminarProducto(id: id);
 
-    setState(() => _resultados.remove(doc));
+    setState(() => _resultados.removeWhere((d) => _docId(d) == id));
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -237,8 +227,7 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
     );
   }
 
-  Future<void> _editar(QueryDocumentSnapshot doc) async {
-    final data = doc.data() as Map<String, dynamic>;
+  Future<void> _editar(Map<String, dynamic> data) async {
     final nombreCtrl = TextEditingController(text: data['nombre'] ?? '');
     String tipo = data['tipo'] ?? 'Etiqueta';
     String idioma = data['idioma'] ?? 'ES';
@@ -369,14 +358,12 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
                 backgroundColor: AppColors.primary,
               ),
               onPressed: () async {
-                await FirebaseFirestore.instance
-                    .collection('productos')
-                    .doc(doc.id)
-                    .update({
-                  'nombre': nombreCtrl.text.trim(),
-                  'tipo': tipo,
-                  'idioma': idioma,
-                });
+                await DataMaster().actualizarProducto(
+                  id: _docId(data),
+                  nombre: nombreCtrl.text.trim(),
+                  tipo: tipo,
+                  idioma: idioma,
+                );
                 if (ctx.mounted) Navigator.pop(ctx);
                 _buscar();
               },
@@ -536,7 +523,7 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
             title: Text(
               _prefijosSeleccionados.isEmpty
                   ? 'Código'
-                  : 'Código: ${_prefijosSeleccionados.toList()..sort()}'.replaceAll('[', '').replaceAll(']', ''),
+                  : 'Código: ${(_prefijosSeleccionados.toList()..sort()).join(', ')}',
               style: const TextStyle(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w600,
@@ -604,16 +591,15 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
     );
   }
 
-  Widget _buildProductoItem(QueryDocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  Widget _buildProductoItem(Map<String, dynamic> data) {
+    final id = _docId(data);
 
     int stockMostrar;
     String? etiquetaCodigo;
 
-    if (_prefijosActivos.isNotEmpty && _stockPorCodigo.containsKey(doc.id)) {
-      stockMostrar = _stockPorCodigo[doc.id]!
-          .values
-          .fold(0, (sum, v) => sum + v);
+    if (_prefijosActivos.isNotEmpty && _stockPorCodigo.containsKey(id)) {
+      stockMostrar =
+          _stockPorCodigo[id]!.values.fold(0, (sum, v) => sum + v);
       etiquetaCodigo = _prefijosActivos.join(', ');
     } else {
       stockMostrar = (data['stockActual'] as num?)?.toInt() ?? 0;
@@ -670,11 +656,11 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
-            onPressed: () => _editar(doc),
+            onPressed: () => _editar(data),
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.red),
-            onPressed: () => _eliminar(doc),
+            onPressed: () => _eliminar(data),
           ),
         ],
       ),

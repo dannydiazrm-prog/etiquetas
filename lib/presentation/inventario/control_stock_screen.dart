@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/breakpoints.dart';
+import '../../core/data/data_master.dart';
 
 class ControlStockScreen extends StatefulWidget {
   const ControlStockScreen({super.key});
@@ -29,26 +29,24 @@ class _ControlStockScreenState extends State<ControlStockScreen> {
     return 'BAJO';
   }
 
-  Future<List<QueryDocumentSnapshot>> _cargarProductosBajos() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('productos')
-        .get();
+  Future<List<Map<String, dynamic>>> _cargarProductosBajos() async {
+    final todos = await DataMaster().obtenerProductos();
 
-    final docs = snapshot.docs.where((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      return (data['stockActual'] ?? 0) < 1000;
+    final bajos = todos.where((p) {
+      final stock = (p['stockActual'] as num?)?.toInt() ?? 0;
+      return stock < 1000;
     }).toList();
 
-    docs.sort((a, b) {
-      final stockA = (a.data() as Map<String, dynamic>)['stockActual'] ?? 0;
-      final stockB = (b.data() as Map<String, dynamic>)['stockActual'] ?? 0;
+    bajos.sort((a, b) {
+      final stockA = (a['stockActual'] as num?)?.toInt() ?? 0;
+      final stockB = (b['stockActual'] as num?)?.toInt() ?? 0;
       return stockA.compareTo(stockB);
     });
 
-    return docs;
+    return bajos;
   }
 
-  Future<void> _generarPDF(List<QueryDocumentSnapshot> docs) async {
+  Future<void> _generarPDF(List<Map<String, dynamic>> docs) async {
     setState(() => _generando = true);
 
     try {
@@ -133,9 +131,8 @@ class _ControlStockScreenState extends State<ControlStockScreen> {
                           ))
                       .toList(),
                 ),
-                ...docs.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final stock = data['stockActual'] ?? 0;
+                ...docs.map((data) {
+                  final stock = (data['stockActual'] as num?)?.toInt() ?? 0;
                   String estado;
                   if (stock == 0) {
                     estado = 'SIN STOCK';
@@ -201,7 +198,7 @@ class _ControlStockScreenState extends State<ControlStockScreen> {
         children: [
           _buildHeader(context),
           Expanded(
-            child: FutureBuilder<List<QueryDocumentSnapshot>>(
+            child: FutureBuilder<List<Map<String, dynamic>>>(
               future: _cargarProductosBajos(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -299,9 +296,9 @@ class _ControlStockScreenState extends State<ControlStockScreen> {
                         padding: const EdgeInsets.all(16),
                         itemCount: docs.length,
                         itemBuilder: (context, index) {
-                          final data =
-                              docs[index].data() as Map<String, dynamic>;
-                          final stock = data['stockActual'] ?? 0;
+                          final data = docs[index];
+                          final stock =
+                              (data['stockActual'] as num?)?.toInt() ?? 0;
                           final color = _colorSemaforo(stock);
                           final estado = _etiquetaSemaforo(stock);
 

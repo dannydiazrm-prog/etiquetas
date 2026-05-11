@@ -145,7 +145,7 @@ class _Footer extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: const [
           Text(
-            '04/2026',
+            '05/2026',
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,

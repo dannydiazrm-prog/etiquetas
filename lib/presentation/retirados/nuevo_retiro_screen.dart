@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/breakpoints.dart';
+import '../../core/data/data_master.dart';
 
 class NuevoRetiroScreen extends StatefulWidget {
   const NuevoRetiroScreen({super.key});
@@ -18,12 +18,12 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
   bool _prospectos = false;
   bool _espanol = false;
   bool _ingles = false;
-  List<QueryDocumentSnapshot> _resultados = [];
+  List<Map<String, dynamic>> _resultados = [];
   bool _buscando = false;
   bool _buscado = false;
 
   // Paso 2: Formulario
-  QueryDocumentSnapshot? _productoSeleccionado;
+  Map<String, dynamic>? _productoSeleccionado;
   final _companeroController = TextEditingController();
   final _loteController = TextEditingController();
   final _cantidadEstimadaController = TextEditingController();
@@ -33,6 +33,9 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
   List<Map<String, dynamic>> _destinosConStock = [];
   bool _guardando = false;
   String _error = '';
+
+  String _docId(Map<String, dynamic> d) =>
+      d['firestoreId']?.toString() ?? d['id']?.toString() ?? '';
 
   @override
   void dispose() {
@@ -51,28 +54,24 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
       _productoSeleccionado = null;
     });
 
-    Query query = FirebaseFirestore.instance.collection('productos');
+    List<Map<String, dynamic>> docs = await DataMaster().obtenerProductos();
 
     if (_etiquetas && !_prospectos) {
-      query = query.where('tipo', isEqualTo: 'Etiqueta');
+      docs = docs.where((d) => d['tipo'] == 'Etiqueta').toList();
     } else if (_prospectos && !_etiquetas) {
-      query = query.where('tipo', isEqualTo: 'Prospecto');
+      docs = docs.where((d) => d['tipo'] == 'Prospecto').toList();
     }
 
     if (_espanol && !_ingles) {
-      query = query.where('idioma', isEqualTo: 'ES');
+      docs = docs.where((d) => d['idioma'] == 'ES').toList();
     } else if (_ingles && !_espanol) {
-      query = query.where('idioma', isEqualTo: 'EN');
+      docs = docs.where((d) => d['idioma'] == 'EN').toList();
     }
-
-    final snapshot = await query.get();
-    List<QueryDocumentSnapshot> docs = snapshot.docs;
 
     final nombre = _nombreController.text.trim().toLowerCase();
     if (nombre.isNotEmpty) {
       docs = docs.where((d) {
-        final data = d.data() as Map<String, dynamic>;
-        return (data['nombre'] ?? '').toString().toLowerCase().contains(nombre);
+        return (d['nombre'] ?? '').toString().toLowerCase().contains(nombre);
       }).toList();
     }
 
@@ -83,8 +82,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
     });
   }
 
-  Future<void> _seleccionarProducto(QueryDocumentSnapshot doc) async {
-    final data = doc.data() as Map<String, dynamic>;
+  Future<void> _seleccionarProducto(Map<String, dynamic> data) async {
     final stockPorDestino = Map<String, dynamic>.from(
       data['stockPorDestino'] ?? {},
     );
@@ -102,11 +100,12 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
       } else if (id == 'local') {
         nombre = 'Local';
       } else {
-        final destinoDoc = await FirebaseFirestore.instance
-            .collection('destinos')
-            .doc(id)
-            .get();
-        nombre = destinoDoc.data()?['nombre'] ?? id;
+        final destinos = await DataMaster().obtenerDestinos();
+        final match = destinos.firstWhere(
+          (d) => _docId(d) == id,
+          orElse: () => {'nombre': id},
+        );
+        nombre = match['nombre']?.toString() ?? id;
       }
 
       destinosConStock.add({
@@ -117,7 +116,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
     }
 
     setState(() {
-      _productoSeleccionado = doc;
+      _productoSeleccionado = data;
       _destinosConStock = destinosConStock;
       _destinoSeleccionado = null;
       _destinoSeleccionadoId = null;
@@ -158,21 +157,20 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
       return;
     }
 
-    final data = _productoSeleccionado!.data() as Map<String, dynamic>;
+    final data = _productoSeleccionado!;
     final stockPorDestino = Map<String, dynamic>.from(
       data['stockPorDestino'] ?? {},
     );
 
-    // Determinar de qué destino descontar
     final claveDescuento = _destinoSeleccionadoId!;
-final stockDisponible =
-    (stockPorDestino[claveDescuento] as num?)?.toInt() ?? 0;
+    final stockDisponible =
+        (stockPorDestino[claveDescuento] as num?)?.toInt() ?? 0;
 
-if (cantidadEntregada > stockDisponible) {
-  setState(() =>
-      _error = 'Stock insuficiente para este destino: $stockDisponible');
-  return;
-}
+    if (cantidadEntregada > stockDisponible) {
+      setState(() =>
+          _error = 'Stock insuficiente para este destino: $stockDisponible');
+      return;
+    }
 
     setState(() {
       _guardando = true;
@@ -184,54 +182,33 @@ if (cantidadEntregada > stockDisponible) {
       final estadoInicial = hayPendiente ? 'pendiente' : 'cerrado';
       final consumoReal = hayPendiente ? null : cantidadEntregada;
       final perdida = hayPendiente ? null : 0;
-      final motivoCierre =
-          hayPendiente ? null : 'Entrega exacta o menor';
+      final motivoCierre = hayPendiente ? null : 'Entrega exacta o menor';
 
-      // Actualizar stockPorDestino
-      stockPorDestino[claveDescuento] =
-          stockDisponible - cantidadEntregada;
+      stockPorDestino[claveDescuento] = stockDisponible - cantidadEntregada;
 
-      // Recalcular total
       final nuevoStockTotal = stockPorDestino.values
           .fold<int>(0, (sum, v) => sum + ((v as num).toInt()));
 
-      final batch = FirebaseFirestore.instance.batch();
-
-      batch.update(
-        FirebaseFirestore.instance
-            .collection('productos')
-            .doc(_productoSeleccionado!.id),
-        {
-          'stockActual': nuevoStockTotal,
-          'stockPorDestino': stockPorDestino,
-        },
+      await DataMaster().registrarRetiro(
+        productoId: _docId(data),
+        productoNombre: data['nombre'] ?? '',
+        tipo: data['tipo'] ?? '',
+        idioma: data['idioma'] ?? '',
+        companero: companero,
+        lote: lote,
+        destino: _destinoSeleccionado ?? '',
+        destinoId: claveDescuento,
+        cantidadEstimada: cantidadEstimada,
+        cantidadEntregada: cantidadEntregada,
+        cantidadDevuelta: 0,
+        consumoReal: consumoReal,
+        perdida: perdida,
+        motivoCierre: motivoCierre,
+        estado: estadoInicial,
+        hayPendiente: hayPendiente,
+        nuevoStock: nuevoStockTotal,
+        stockPorDestino: stockPorDestino,
       );
-
-      final retiroRef =
-          FirebaseFirestore.instance.collection('retiros').doc();
-
-      batch.set(retiroRef, {
-        'productoId': _productoSeleccionado!.id,
-        'productoNombre': data['nombre'],
-        'tipo': data['tipo'],
-        'idioma': data['idioma'],
-        'companero': companero,
-        'lote': lote,
-        'destino': _destinoSeleccionado,
-        'destinoId': claveDescuento,
-        'cantidadEstimada': cantidadEstimada,
-        'cantidadEntregada': cantidadEntregada,
-        'cantidadDevuelta': 0,
-        'consumoReal': consumoReal,
-        'perdida': perdida,
-        'motivoCierre': motivoCierre,
-        'estado': estadoInicial,
-        'fecha': FieldValue.serverTimestamp(),
-        'fechaCierre':
-            hayPendiente ? null : FieldValue.serverTimestamp(),
-      });
-
-      await batch.commit();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -293,8 +270,7 @@ if (cantidadEntregada > stockDisponible) {
           controller: _nombreController,
           decoration: InputDecoration(
             hintText: 'Buscar por nombre',
-            prefixIcon:
-                const Icon(Icons.search, color: AppColors.primary),
+            prefixIcon: const Icon(Icons.search, color: AppColors.primary),
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(
@@ -303,8 +279,8 @@ if (cantidadEntregada > stockDisponible) {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                  color: AppColors.primary, width: 2),
+              borderSide:
+                  const BorderSide(color: AppColors.primary, width: 2),
             ),
           ),
         ),
@@ -317,10 +293,9 @@ if (cantidadEntregada > stockDisponible) {
                 (v) => setState(() => _etiquetas = v)),
             _buildChip('Prospectos', _prospectos,
                 (v) => setState(() => _prospectos = v)),
-            _buildChip('Español', _espanol,
-                (v) => setState(() => _espanol = v)),
-            _buildChip('Inglés', _ingles,
-                (v) => setState(() => _ingles = v)),
+            _buildChip(
+                'Español', _espanol, (v) => setState(() => _espanol = v)),
+            _buildChip('Inglés', _ingles, (v) => setState(() => _ingles = v)),
           ],
         ),
         const SizedBox(height: 16),
@@ -355,14 +330,13 @@ if (cantidadEntregada > stockDisponible) {
               ),
             ),
           ),
-        ..._resultados.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          final stock = data['stockActual'] ?? 0;
+        ..._resultados.map((data) {
+          final stock = (data['stockActual'] as num?)?.toInt() ?? 0;
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
-              onTap: () => _seleccionarProducto(doc),
+              onTap: () => _seleccionarProducto(data),
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -420,7 +394,7 @@ if (cantidadEntregada > stockDisponible) {
   }
 
   Widget _buildFormulario() {
-    final data = _productoSeleccionado!.data() as Map<String, dynamic>;
+    final data = _productoSeleccionado!;
     final estimadaPreview =
         int.tryParse(_cantidadEstimadaController.text.trim());
     final entregadaPreview =
@@ -432,7 +406,6 @@ if (cantidadEntregada > stockDisponible) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Producto seleccionado
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -470,7 +443,7 @@ if (cantidadEntregada > stockDisponible) {
                         _buildTagBlanco(data['idioma'] ?? ''),
                         const SizedBox(width: 8),
                         _buildTagBlanco(
-                            'Stock: ${data['stockActual'] ?? 0}'),
+                            'Stock: ${(data['stockActual'] as num?)?.toInt() ?? 0}'),
                       ],
                     ),
                   ],
@@ -516,7 +489,8 @@ if (cantidadEntregada > stockDisponible) {
             ),
             child: const Text(
               'Este producto no tiene stock registrado por destino. Realiza una recepción primero.',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+              style:
+                  TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
             ),
           )
         else
@@ -538,9 +512,8 @@ if (cantidadEntregada > stockDisponible) {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: seleccionado
-                        ? AppColors.primary
-                        : Colors.white,
+                    color:
+                        seleccionado ? AppColors.primary : Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.primary),
                   ),
@@ -710,8 +683,7 @@ if (cantidadEntregada > stockDisponible) {
       onTap: () => onTap(!seleccionado),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: seleccionado ? AppColors.primary : Colors.white,
           borderRadius: BorderRadius.circular(20),

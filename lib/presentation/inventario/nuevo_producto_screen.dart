@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/breakpoints.dart';
+import '../../core/data/data_master.dart';
 
 class NuevoProductoScreen extends StatefulWidget {
   const NuevoProductoScreen({super.key});
@@ -46,15 +46,11 @@ class _NuevoProductoScreenState extends State<NuevoProductoScreen> {
     });
 
     try {
-      await FirebaseFirestore.instance.collection('productos').add({
-        'nombre': nombre,
-        'tipo': _tipo,
-        'idioma': _idioma,
-        'stockActual': 0,
-        'stockMinimo': 1000,
-        'destinos': [],
-        'creadoEn': FieldValue.serverTimestamp(),
-      });
+      await DataMaster().crearProducto(
+        nombre: nombre,
+        tipo: _tipo!,
+        idioma: _idioma!,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

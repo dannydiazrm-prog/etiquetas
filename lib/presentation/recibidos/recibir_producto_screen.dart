@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/breakpoints.dart';
+import '../../core/data/data_master.dart';
 
 class RecibirProductoScreen extends StatefulWidget {
   const RecibirProductoScreen({super.key});
@@ -17,7 +17,7 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
   bool _prospectos = false;
   bool _espanol = false;
   bool _ingles = false;
-  List<QueryDocumentSnapshot> _resultados = [];
+  List<Map<String, dynamic>> _resultados = [];
   bool _buscando = false;
   bool _buscado = false;
   String? _expandidoId;
@@ -36,6 +36,9 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
     super.dispose();
   }
 
+  String _docId(Map<String, dynamic> d) =>
+      d['firestoreId']?.toString() ?? d['id']?.toString() ?? '';
+
   Future<void> _buscar() async {
     setState(() {
       _buscando = true;
@@ -43,28 +46,24 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
       _expandidoId = null;
     });
 
-    Query query = FirebaseFirestore.instance.collection('productos');
+    List<Map<String, dynamic>> docs = await DataMaster().obtenerProductos();
 
     if (_etiquetas && !_prospectos) {
-      query = query.where('tipo', isEqualTo: 'Etiqueta');
+      docs = docs.where((d) => d['tipo'] == 'Etiqueta').toList();
     } else if (_prospectos && !_etiquetas) {
-      query = query.where('tipo', isEqualTo: 'Prospecto');
+      docs = docs.where((d) => d['tipo'] == 'Prospecto').toList();
     }
 
     if (_espanol && !_ingles) {
-      query = query.where('idioma', isEqualTo: 'ES');
+      docs = docs.where((d) => d['idioma'] == 'ES').toList();
     } else if (_ingles && !_espanol) {
-      query = query.where('idioma', isEqualTo: 'EN');
+      docs = docs.where((d) => d['idioma'] == 'EN').toList();
     }
-
-    final snapshot = await query.get();
-    List<QueryDocumentSnapshot> docs = snapshot.docs;
 
     final nombre = _nombreController.text.trim().toLowerCase();
     if (nombre.isNotEmpty) {
       docs = docs.where((d) {
-        final data = d.data() as Map<String, dynamic>;
-        return (data['nombre'] ?? '').toString().toLowerCase().contains(nombre);
+        return (d['nombre'] ?? '').toString().toLowerCase().contains(nombre);
       }).toList();
     }
 
@@ -81,17 +80,14 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
       {'id': 'local', 'nombre': 'Local'},
     ];
 
-    final snapshot = await FirebaseFirestore.instance
-        .collection('destinos')
-        .orderBy('creadoEn')
-        .get();
-
-    final destinosFirestore = snapshot.docs.map((d) {
-      return {'id': d.id, 'nombre': d.data()['nombre'] ?? ''};
-    }).toList();
+    final destinosFirestore = await DataMaster().obtenerDestinos();
+    final destinosExtra = destinosFirestore
+        .where((d) => d['nombre'] != 'Todos' && d['nombre'] != 'Local')
+        .map((d) => {'id': _docId(d), 'nombre': d['nombre'] ?? ''})
+        .toList();
 
     setState(() {
-      _destinos = [...destinosDefecto, ...destinosFirestore];
+      _destinos = [...destinosDefecto, ...destinosExtra];
       _destinosSeleccionados = {
         for (var d in _destinos) d['id'] as String: false
       };
@@ -115,7 +111,7 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
     });
   }
 
-  Future<void> _confirmar(QueryDocumentSnapshot doc) async {
+  Future<void> _confirmar(Map<String, dynamic> data) async {
     final cantidad = int.tryParse(_cantidadController.text.trim());
     final codigo = _codigoController.text.trim();
 
@@ -139,43 +135,42 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
       return;
     }
 
+    final destinosHabilitados = _destinosSeleccionados.entries
+        .where((e) => e.value)
+        .map((e) => e.key)
+        .toList();
+
+    if (destinosHabilitados.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecciona al menos un destino'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _guardando = true);
 
     try {
-      final data = doc.data() as Map<String, dynamic>;
-      final destinosHabilitados = _destinosSeleccionados.entries
-          .where((e) => e.value)
-          .map((e) => e.key)
-          .toList();
+      final productoId = _docId(data);
+
+      final String destinoClave;
+      if (destinosHabilitados.contains('todos')) {
+        destinoClave = 'todos';
+      } else {
+        destinoClave = destinosHabilitados.first;
+      }
 
       final stockPorDestino = Map<String, dynamic>.from(
         data['stockPorDestino'] ?? {},
       );
-
-      if (destinosHabilitados.isEmpty) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Selecciona al menos un destino'),
-      backgroundColor: Colors.red,
-    ),
-  );
-  setState(() => _guardando = false);
-  return;
-}
-
-final String destinoClave;
-if (destinosHabilitados.contains('todos')) {
-  destinoClave = 'todos';
-} else {
-  destinoClave = destinosHabilitados.first;
-}
-
       final stockActualDestino =
-    (stockPorDestino[destinoClave] as num?)?.toInt() ?? 0;
-stockPorDestino[destinoClave] = stockActualDestino + cantidad;
+          (stockPorDestino[destinoClave] as num?)?.toInt() ?? 0;
+      stockPorDestino[destinoClave] = stockActualDestino + cantidad;
 
-final nuevoStockTotal = stockPorDestino.values
-    .fold<int>(0, (sum, v) => sum + ((v as num).toInt()));
+      final nuevoStockTotal = stockPorDestino.values
+          .fold<int>(0, (sum, v) => sum + ((v as num).toInt()));
 
       final destinosActuales = List<String>.from(data['destinos'] ?? []);
       for (final d in destinosHabilitados) {
@@ -184,52 +179,19 @@ final nuevoStockTotal = stockPorDestino.values
         }
       }
 
-      final batch = FirebaseFirestore.instance.batch();
-
-      batch.update(
-        FirebaseFirestore.instance.collection('productos').doc(doc.id),
-        {
-          'stockActual': nuevoStockTotal,
-          'stockPorDestino': stockPorDestino,
-          'destinos': destinosActuales,
-        },
+      await DataMaster().registrarRecepcion(
+        productoId: productoId,
+        productoNombre: data['nombre'] ?? '',
+        tipo: data['tipo'] ?? '',
+        idioma: data['idioma'] ?? '',
+        cantidad: cantidad,
+        codigo: codigo,
+        destinoClave: destinoClave,
+        destinos: destinosHabilitados,
+        nuevoStock: nuevoStockTotal,
+        stockPorDestino: stockPorDestino,
+        destinosProducto: destinosActuales,
       );
-
-      batch.set(
-        FirebaseFirestore.instance.collection('recepciones').doc(),
-        {
-          'productoId': doc.id,
-          'productoNombre': data['nombre'],
-          'tipo': data['tipo'],
-          'idioma': data['idioma'],
-          'cantidad': cantidad,
-          'codigo': codigo,
-          'destinoClave': destinoClave,
-          'destinos': destinosHabilitados,
-          'fecha': FieldValue.serverTimestamp(),
-        },
-      );
-
-// Agregar prefijo a usados si no existe
-final prefijo = codigo.substring(0, 2);
-final prefijosDoc = await FirebaseFirestore.instance
-    .collection('config')
-    .doc('prefijos')
-    .get();
-final usados = (prefijosDoc.data()?['usados'] ?? [])
-    .map((e) => e.toString())
-    .toList()
-    .cast<String>();
-if (!usados.contains(prefijo)) {
-  batch.update(
-    FirebaseFirestore.instance.collection('config').doc('prefijos'),
-    {
-      'usados': FieldValue.arrayUnion([prefijo]),
-    },
-  );
-}
-
-      await batch.commit();
 
       setState(() {
         _expandidoId = null;
@@ -247,19 +209,19 @@ if (!usados.contains(prefijo)) {
           ),
         );
       }
-	  
     } catch (e) {
-  setState(() => _guardando = false);
-  if (mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Error al guardar. Intenta de nuevo.'),
-        backgroundColor: Colors.red,
-      ),
-    );
+      setState(() => _guardando = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al guardar. Intenta de nuevo.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
-}
-}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -309,9 +271,8 @@ if (!usados.contains(prefijo)) {
                         ),
                       ),
                     ..._resultados.map((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final expandido = _expandidoId == doc.id;
-                      return _buildProductoItem(doc, data, expandido);
+                      final expandido = _expandidoId == _docId(doc);
+                      return _buildProductoItem(doc, expandido);
                     }),
                   ],
                 ),
@@ -324,10 +285,10 @@ if (!usados.contains(prefijo)) {
   }
 
   Widget _buildProductoItem(
-    QueryDocumentSnapshot doc,
     Map<String, dynamic> data,
     bool expandido,
   ) {
+    final id = _docId(data);
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       margin: const EdgeInsets.only(bottom: 12),
@@ -345,7 +306,7 @@ if (!usados.contains(prefijo)) {
         children: [
           InkWell(
             borderRadius: BorderRadius.circular(12),
-            onTap: () => _expandir(doc.id, data),
+            onTap: () => _expandir(id, data),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -369,7 +330,8 @@ if (!usados.contains(prefijo)) {
                             const SizedBox(width: 8),
                             _buildTag(data['idioma'] ?? ''),
                             const SizedBox(width: 8),
-                            _buildTag('Stock: ${data['stockActual'] ?? 0}'),
+                            _buildTag(
+                                'Stock: ${(data['stockActual'] as num?)?.toInt() ?? 0}'),
                           ],
                         ),
                       ],
@@ -463,66 +425,73 @@ if (!usados.contains(prefijo)) {
                   ),
                   const SizedBox(height: 8),
                   Container(
-  decoration: BoxDecoration(
-    color: Colors.grey[50],
-    borderRadius: BorderRadius.circular(12),
-    border: Border.all(color: AppColors.primary),
-  ),
-  child: ExpansionTile(
-    title: Text(
-      _destinosSeleccionados.entries.any((e) => e.value)
-          ? _destinos
-              .where((d) =>
-                  _destinosSeleccionados[d['id'] as String] == true)
-              .map((d) => d['nombre'] as String)
-              .join(', ')
-          : 'Selecciona los destinos',
-      style: TextStyle(
-        color: _destinosSeleccionados.entries.any((e) => e.value)
-            ? AppColors.primary
-            : Colors.grey[500],
-        fontWeight: FontWeight.w600,
-        fontSize: 14,
-      ),
-    ),
-    iconColor: AppColors.primary,
-    collapsedIconColor: AppColors.primary,
-    children: _destinos.map((d) {
-      final id = d['id'] as String;
-      final nombre = d['nombre'] as String;
-      final activo = _destinosSeleccionados[id] ?? false;
-      return Container(
-        decoration: BoxDecoration(
-          color: activo
-              ? AppColors.primary.withOpacity(0.05)
-              : Colors.white,
-          border: Border(
-            top: BorderSide(color: Colors.grey.shade200),
-          ),
-        ),
-        child: SwitchListTile(
-          value: activo,
-          activeColor: AppColors.primary,
-          title: Text(
-            nombre,
-            style: TextStyle(
-              color: activo ? AppColors.primary : Colors.grey[600],
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          onChanged: (v) =>
-              setState(() => _destinosSeleccionados[id] = v),
-        ),
-      );
-    }).toList(),
-  ),
-),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary),
+                    ),
+                    child: ExpansionTile(
+                      title: Text(
+                        _destinosSeleccionados.entries.any((e) => e.value)
+                            ? _destinos
+                                .where((d) =>
+                                    _destinosSeleccionados[
+                                            d['id'] as String] ==
+                                        true)
+                                .map((d) => d['nombre'] as String)
+                                .join(', ')
+                            : 'Selecciona los destinos',
+                        style: TextStyle(
+                          color: _destinosSeleccionados.entries
+                                  .any((e) => e.value)
+                              ? AppColors.primary
+                              : Colors.grey[500],
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      iconColor: AppColors.primary,
+                      collapsedIconColor: AppColors.primary,
+                      children: _destinos.map((d) {
+                        final dId = d['id'] as String;
+                        final nombre = d['nombre'] as String;
+                        final activo =
+                            _destinosSeleccionados[dId] ?? false;
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: activo
+                                ? AppColors.primary.withOpacity(0.05)
+                                : Colors.white,
+                            border: Border(
+                              top: BorderSide(color: Colors.grey.shade200),
+                            ),
+                          ),
+                          child: SwitchListTile(
+                            value: activo,
+                            activeColor: AppColors.primary,
+                            title: Text(
+                              nombre,
+                              style: TextStyle(
+                                color: activo
+                                    ? AppColors.primary
+                                    : Colors.grey[600],
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            onChanged: (v) => setState(
+                                () => _destinosSeleccionados[dId] = v),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: _guardando ? null : () => _confirmar(doc),
+                      onPressed:
+                          _guardando ? null : () => _confirmar(data),
                       child: _guardando
                           ? const CircularProgressIndicator(
                               color: Colors.white)
@@ -589,8 +558,8 @@ if (!usados.contains(prefijo)) {
                 (v) => setState(() => _prospectos = v)),
             _buildChip('Español', _espanol,
                 (v) => setState(() => _espanol = v)),
-            _buildChip('Ingles', _ingles, 
-			(v) => setState(() => _ingles = v)),
+            _buildChip('Ingles', _ingles,
+                (v) => setState(() => _ingles = v)),
           ],
         ),
       ],

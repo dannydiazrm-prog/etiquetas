@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/breakpoints.dart';
+import '../../core/data/data_master.dart';
 
 class ReportesScreen extends StatefulWidget {
   const ReportesScreen({super.key});
@@ -32,29 +32,23 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Future<void> _cargarPrefijos() async {
-    final doc = await FirebaseFirestore.instance
-        .collection('config')
-        .doc('prefijos')
-        .get();
-    final usados = (doc.data()?['usados'] ?? [])
+    final config = await DataMaster().obtenerConfig('prefijos');
+    final usados = (config?['usados'] as List<dynamic>? ?? [])
         .map((e) => e.toString())
         .toList()
-        .cast<String>();
-    usados.sort();
-    setState(() => _prefijosUsados = usados);
+      ..sort();
+    if (mounted) setState(() => _prefijosUsados = usados);
   }
 
   Future<Map<String, Map<String, int>>> _obtenerStockPorCodigo(
     List<String> prefijos,
   ) async {
     final Map<String, Map<String, int>> resultado = {};
-    final snapshot =
-        await FirebaseFirestore.instance.collection('recepciones').get();
+    final recepciones = await DataMaster().obtenerRecepciones();
 
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
+    for (final data in recepciones) {
       final codigo = (data['codigo'] ?? '').toString();
-      final productoId = data['productoId'] as String?;
+      final productoId = data['productoId']?.toString();
       final cantidad = (data['cantidad'] as num?)?.toInt() ?? 0;
 
       if (productoId == null || codigo.length < 2) continue;
@@ -74,32 +68,30 @@ class _ReportesScreenState extends State<ReportesScreen> {
     setState(() => _generando = true);
 
     try {
-      Query query = FirebaseFirestore.instance.collection('productos');
+      List<Map<String, dynamic>> docs = await DataMaster().obtenerProductos();
 
+      // Filtro tipo
       if (_etiquetas && !_prospectos) {
-        query = query.where('tipo', isEqualTo: 'Etiqueta');
+        docs = docs.where((d) => d['tipo'] == 'Etiqueta').toList();
       } else if (_prospectos && !_etiquetas) {
-        query = query.where('tipo', isEqualTo: 'Prospecto');
+        docs = docs.where((d) => d['tipo'] == 'Prospecto').toList();
       }
 
+      // Filtro idioma
       if (_espanol && !_ingles) {
-        query = query.where('idioma', isEqualTo: 'ES');
+        docs = docs.where((d) => d['idioma'] == 'ES').toList();
       } else if (_ingles && !_espanol) {
-        query = query.where('idioma', isEqualTo: 'EN');
+        docs = docs.where((d) => d['idioma'] == 'EN').toList();
       }
 
-      final snapshot = await query.get();
-      List<QueryDocumentSnapshot> docs = snapshot.docs;
-
+      // Filtro stock
       if (_conStock && !_sinStock) {
         docs = docs.where((d) {
-          final data = d.data() as Map<String, dynamic>;
-          return (data['stockActual'] ?? 0) > 0;
+          return ((d['stockActual'] as num?)?.toInt() ?? 0) > 0;
         }).toList();
       } else if (_sinStock && !_conStock) {
         docs = docs.where((d) {
-          final data = d.data() as Map<String, dynamic>;
-          return (data['stockActual'] ?? 0) == 0;
+          return ((d['stockActual'] as num?)?.toInt() ?? 0) == 0;
         }).toList();
       }
 
@@ -108,9 +100,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
       if (prefijosActivos.isNotEmpty) {
         stockPorCodigo = await _obtenerStockPorCodigo(prefijosActivos);
-        docs = docs
-            .where((d) => stockPorCodigo.containsKey(d.id))
-            .toList();
+        final idsConCodigo = stockPorCodigo.keys.toSet();
+        docs = docs.where((d) {
+          final id = d['firestoreId']?.toString() ?? d['id']?.toString() ?? '';
+          return idsConCodigo.contains(id);
+        }).toList();
       }
 
       final pdf = pw.Document();
@@ -212,12 +206,13 @@ class _ReportesScreenState extends State<ReportesScreen> {
                         )
                         .toList(),
                   ),
-                  ...docs.map((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
+                  ...docs.map((data) {
+                    final docId =
+                        data['firestoreId']?.toString() ?? data['id']?.toString() ?? '';
                     int stockMostrar;
                     if (prefijosActivos.isNotEmpty &&
-                        stockPorCodigo.containsKey(doc.id)) {
-                      stockMostrar = stockPorCodigo[doc.id]!
+                        stockPorCodigo.containsKey(docId)) {
+                      stockMostrar = stockPorCodigo[docId]!
                           .values
                           .fold(0, (sum, v) => sum + v);
                     } else {

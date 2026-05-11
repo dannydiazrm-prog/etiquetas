@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/breakpoints.dart';
+import '../../core/data/data_master.dart';
 
 class HistorialRecepcionesScreen extends StatefulWidget {
   const HistorialRecepcionesScreen({super.key});
@@ -20,7 +20,7 @@ class _HistorialRecepcionesScreenState
   final _nombreController = TextEditingController();
   DateTime? _desde;
   DateTime? _hasta;
-  List<QueryDocumentSnapshot> _resultados = [];
+  List<Map<String, dynamic>> _resultados = [];
   bool _buscando = false;
   bool _buscado = false;
   bool _generando = false;
@@ -52,38 +52,68 @@ class _HistorialRecepcionesScreenState
   }
 
   Future<void> _ejecutarBusqueda() async {
-    Query query = FirebaseFirestore.instance
-        .collection('recepciones')
-        .orderBy('fecha', descending: true);
+    List<Map<String, dynamic>> docs = await DataMaster().obtenerRecepciones();
 
+    // Filtro por fecha
     if (_desde != null) {
-      query = query.where('fecha',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(_desde!));
+      docs = docs.where((d) {
+        final fecha = _parseFecha(d['fecha']);
+        return fecha != null && !fecha.isBefore(_desde!);
+      }).toList();
     }
     if (_hasta != null) {
-      query = query.where('fecha',
-          isLessThanOrEqualTo: Timestamp.fromDate(_hasta!));
+      docs = docs.where((d) {
+        final fecha = _parseFecha(d['fecha']);
+        return fecha != null && !fecha.isAfter(_hasta!);
+      }).toList();
     }
 
-    final snapshot = await query.get();
-    List<QueryDocumentSnapshot> docs = snapshot.docs;
-
+    // Filtro por nombre
     final nombre = _nombreController.text.trim().toLowerCase();
     if (nombre.isNotEmpty) {
       docs = docs.where((d) {
-        final data = d.data() as Map<String, dynamic>;
-        return (data['productoNombre'] ?? '')
+        return (d['productoNombre'] ?? '')
             .toString()
             .toLowerCase()
             .contains(nombre);
       }).toList();
     }
 
+    // Orden descendente por fecha
+    docs.sort((a, b) {
+      final fa = _parseFecha(a['fecha']);
+      final fb = _parseFecha(b['fecha']);
+      if (fa == null && fb == null) return 0;
+      if (fa == null) return 1;
+      if (fb == null) return -1;
+      return fb.compareTo(fa);
+    });
+
     setState(() {
       _resultados = docs;
       _buscando = false;
       _buscado = true;
     });
+  }
+
+  /// Convierte el campo fecha, que puede ser String ISO, int epoch ms, o null
+  DateTime? _parseFecha(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is DateTime) return raw;
+    if (raw is int) return DateTime.fromMillisecondsSinceEpoch(raw);
+    if (raw is String) return DateTime.tryParse(raw);
+    return null;
+  }
+
+  String _formatFecha(DateTime? fecha) {
+    if (fecha == null) return 'Seleccionar';
+    return '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}';
+  }
+
+  String _formatFechaRaw(dynamic raw) {
+    final fecha = _parseFecha(raw);
+    if (fecha == null) return '-';
+    return '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year} ${fecha.hour.toString().padLeft(2, '0')}:${fecha.minute.toString().padLeft(2, '0')}';
   }
 
   Future<void> _seleccionarFecha(bool esDesde) async {
@@ -110,17 +140,6 @@ class _HistorialRecepcionesScreenState
         }
       });
     }
-  }
-
-  String _formatFecha(DateTime? fecha) {
-    if (fecha == null) return 'Seleccionar';
-    return '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}';
-  }
-
-  String _formatTimestamp(Timestamp? ts) {
-    if (ts == null) return '-';
-    final fecha = ts.toDate();
-    return '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year} ${fecha.hour.toString().padLeft(2, '0')}:${fecha.minute.toString().padLeft(2, '0')}';
   }
 
   Future<void> _generarPDF() async {
@@ -206,15 +225,14 @@ class _HistorialRecepcionesScreenState
                           ))
                       .toList(),
                 ),
-                ..._resultados.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
+                ..._resultados.map((data) {
                   return pw.TableRow(
                     children: [
                       data['productoNombre'] ?? '',
                       data['tipo'] ?? '',
                       data['idioma'] ?? '',
                       (data['cantidad'] ?? 0).toString(),
-                      _formatTimestamp(data['fecha'] as Timestamp?),
+                      _formatFechaRaw(data['fecha']),
                     ]
                         .map((v) => pw.Padding(
                               padding: const pw.EdgeInsets.all(8),
@@ -364,8 +382,7 @@ class _HistorialRecepcionesScreenState
                           ),
                           if (_resultados.isNotEmpty)
                             ElevatedButton.icon(
-                              onPressed:
-                                  _generando ? null : _generarPDF,
+                              onPressed: _generando ? null : _generarPDF,
                               icon: const Icon(
                                   Icons.picture_as_pdf_outlined,
                                   size: 18),
@@ -393,9 +410,7 @@ class _HistorialRecepcionesScreenState
                             ),
                           ),
                         ),
-                      ..._resultados.map((doc) {
-                        final data =
-                            doc.data() as Map<String, dynamic>;
+                      ..._resultados.map((data) {
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.all(16),
@@ -403,8 +418,7 @@ class _HistorialRecepcionesScreenState
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color:
-                                  AppColors.primary.withOpacity(0.3),
+                              color: AppColors.primary.withOpacity(0.3),
                             ),
                           ),
                           child: Row(
@@ -432,8 +446,7 @@ class _HistorialRecepcionesScreenState
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      _formatTimestamp(data['fecha']
-                                          as Timestamp?),
+                                      _formatFechaRaw(data['fecha']),
                                       style: TextStyle(
                                         color: Colors.grey[600],
                                         fontSize: 12,

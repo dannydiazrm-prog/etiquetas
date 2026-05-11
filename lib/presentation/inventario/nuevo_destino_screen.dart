@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/breakpoints.dart';
+import '../../core/data/data_master.dart';
 
 class NuevoDestinoScreen extends StatefulWidget {
   const NuevoDestinoScreen({super.key});
@@ -15,6 +15,7 @@ class _NuevoDestinoScreenState extends State<NuevoDestinoScreen> {
   final _nombreController = TextEditingController();
   bool _loading = false;
   String _error = '';
+  List<Map<String, dynamic>> _destinos = [];
 
   final List<Map<String, dynamic>> _destinosDefecto = [
     {'nombre': 'Todos', 'editable': false},
@@ -22,9 +23,25 @@ class _NuevoDestinoScreenState extends State<NuevoDestinoScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _cargarDestinos();
+  }
+
+  @override
   void dispose() {
     _nombreController.dispose();
     super.dispose();
+  }
+
+  Future<void> _cargarDestinos() async {
+    final lista = await DataMaster().obtenerDestinos();
+    if (mounted) {
+      setState(() => _destinos = lista
+          .where((d) =>
+              d['nombre'] != 'Todos' && d['nombre'] != 'Local')
+          .toList());
+    }
   }
 
   Future<void> _guardar() async {
@@ -47,11 +64,7 @@ class _NuevoDestinoScreenState extends State<NuevoDestinoScreen> {
     });
 
     try {
-      await FirebaseFirestore.instance.collection('destinos').add({
-        'nombre': nombre,
-        'editable': true,
-        'creadoEn': FieldValue.serverTimestamp(),
-      });
+      await DataMaster().crearDestino(nombre: nombre);
 
       if (mounted) {
         _nombreController.clear();
@@ -61,12 +74,40 @@ class _NuevoDestinoScreenState extends State<NuevoDestinoScreen> {
             backgroundColor: AppColors.primary,
           ),
         );
+        await _cargarDestinos();
       }
     } catch (e) {
       setState(() => _error = 'Error al guardar. Intentá de nuevo.');
     }
 
     setState(() => _loading = false);
+  }
+
+  Future<void> _eliminar(String id) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar destino'),
+        content: const Text('¿Estás seguro? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmar == true) {
+      await DataMaster().eliminarDestino(id: id);
+      await _cargarDestinos();
+    }
   }
 
   @override
@@ -165,37 +206,12 @@ class _NuevoDestinoScreenState extends State<NuevoDestinoScreen> {
                             nombre: d['nombre'],
                             editable: false,
                           )),
-                      StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('destinos')
-                            .orderBy('creadoEn')
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                              child: CircularProgressIndicator(
-                                color: AppColors.primary,
-                              ),
-                            );
-                          }
-                          if (!snapshot.hasData ||
-                              snapshot.data!.docs.isEmpty) {
-                            return const SizedBox();
-                          }
-                          return Column(
-                            children: snapshot.data!.docs.map((doc) {
-                              final data =
-                                  doc.data() as Map<String, dynamic>;
-                              return _buildDestinoItem(
-                                nombre: data['nombre'] ?? '',
-                                editable: true,
-                                onEliminar: () => _eliminar(doc.id),
-                              );
-                            }).toList(),
-                          );
-                        },
-                      ),
+                      ..._destinos.map((d) => _buildDestinoItem(
+                            nombre: d['nombre'] ?? '',
+                            editable: true,
+                            onEliminar: () => _eliminar(
+                                d['firestoreId'] ?? d['id']?.toString() ?? ''),
+                          )),
                     ],
                   ),
                 ),
@@ -205,35 +221,6 @@ class _NuevoDestinoScreenState extends State<NuevoDestinoScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _eliminar(String id) async {
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar destino'),
-        content: const Text('¿Estás seguro? Esta acción no se puede deshacer.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (confirmar == true) {
-      await FirebaseFirestore.instance
-          .collection('destinos')
-          .doc(id)
-          .delete();
-    }
   }
 
   Widget _buildDestinoItem({
@@ -251,7 +238,7 @@ class _NuevoDestinoScreenState extends State<NuevoDestinoScreen> {
       ),
       child: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.flag_outlined,
             color: AppColors.primary,
             size: 20,
