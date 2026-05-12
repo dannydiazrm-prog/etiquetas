@@ -29,8 +29,15 @@ class DataMaster {
     final path = join(dir.path, 'galmedic.db');
     return openDatabase(
       path,
-      version: 1,
+      // Se subió la versión a 2 para permitir la nueva columna 'eliminado'
+      version: 2, 
       onCreate: _crearTablas,
+      // Esta función agrega la columna 'eliminado' sin borrar tus datos actuales
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE productos ADD COLUMN eliminado INTEGER NOT NULL DEFAULT 0');
+        }
+      },
     );
   }
 
@@ -45,7 +52,8 @@ class DataMaster {
         stockPorDestino TEXT NOT NULL DEFAULT '{}',
         destinos TEXT NOT NULL DEFAULT '[]',
         creadoEn TEXT,
-        sincronizado INTEGER NOT NULL DEFAULT 1
+        sincronizado INTEGER NOT NULL DEFAULT 1,
+        eliminado INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -161,6 +169,7 @@ class DataMaster {
           'destinos': jsonEncode(data['destinos'] ?? []),
           'creadoEn': data['creadoEn']?.toString(),
           'sincronizado': 1,
+          'eliminado': 0,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
@@ -234,7 +243,6 @@ class DataMaster {
     return rows.first['valor'] as String?;
   }
 
-  /// Alias de leerConfig para compatibilidad con pantallas existentes
   Future<String?> obtenerConfig(String clave) => leerConfig(clave);
 
   // ─────────────────────────────────────────
@@ -247,7 +255,8 @@ class DataMaster {
     String? nombre,
   }) async {
     final database = await db;
-    String where = '1=1';
+    // Se agregó 'eliminado = 0' para que no se muestren productos borrados offline
+    String where = 'eliminado = 0';
     List<dynamic> args = [];
 
     if (tipo != null) {
@@ -316,6 +325,7 @@ class DataMaster {
       'destinos': '[]',
       'creadoEn': DateTime.now().toIso8601String(),
       'sincronizado': 0,
+      'eliminado': 0,
     });
     return id;
   }
@@ -342,8 +352,13 @@ class DataMaster {
 
   Future<void> eliminarProducto({required String id}) async {
     final database = await db;
-    await database.delete(
+    // Ahora marca el producto como eliminado en lugar de borrarlo físicamente
+    await database.update(
       'productos',
+      {
+        'eliminado': 1,
+        'sincronizado': 0,
+      },
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -828,6 +843,16 @@ class DataMaster {
 
     for (final row in pendientes) {
       final id = row['id'] as String;
+
+      // SI ESTÁ MARCADO COMO ELIMINADO
+      if (row['eliminado'] == 1) {
+        if (!id.startsWith('local_')) {
+          await FirebaseFirestore.instance.collection('productos').doc(id).delete();
+        }
+        await database.delete('productos', where: 'id = ?', whereArgs: [id]);
+        continue;
+      }
+
       final data = {
         'nombre': row['nombre'],
         'tipo': row['tipo'],
@@ -1348,10 +1373,20 @@ class DataMaster {
   }
 
   Future<String> obtenerPin() async {
-    final snap = await FirebaseFirestore.instance
-        .collection('config')
-        .doc('pin')
-        .get();
-    return snap.data()?['valor']?.toString() ?? '1234'; 
+    // Se mejoró la lógica del PIN para que siempre devuelva un String y use 1234 de respaldo
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('config')
+          .doc('pin')
+          .get();
+      if (snap.exists) {
+        return snap.data()?['valor']?.toString() ?? '1234';
+      }
+    } catch (e) {
+      // Si falla la red, intenta leer el PIN local si lo guardamos antes
+      final pinLocal = await leerConfig('pin');
+      if (pinLocal != null) return pinLocal;
+    }
+    return '1234'; 
   }
-} // <--- ESTA ES LA ÚLTIMA LLAVE QUE CIERRA TODO EL ARCHIVO
+}
