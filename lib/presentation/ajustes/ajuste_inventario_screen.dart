@@ -126,6 +126,7 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
         productoId: data['id'] as String,
 		productoNombre: data['nombre'] as String,
         tipoAjuste: _tipoAjuste!,
+		tipo: data['tipo'] as String,
         cantidad: cantidad,
         motivo: motivoFinal,
 		idioma: data['idioma'],
