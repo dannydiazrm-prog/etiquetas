@@ -127,6 +127,7 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
         tipoAjuste: _tipoAjuste!,
         cantidad: cantidad,
         motivo: motivoFinal,
+		idioma: data['idioma'],
       );
 
       if (mounted) {

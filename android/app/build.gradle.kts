@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.jplabs.etiquetas"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "29.0.14206865"
 
     compileOptions {
