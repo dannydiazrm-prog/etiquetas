@@ -72,21 +72,16 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
   }
 
   Future<void> _cargarDestinos() async {
-    final destinosDefecto = [
-      {'id': 'todos', 'nombre': 'Todos'},
-      {'id': 'local', 'nombre': 'Local'},
-    ];
-
-    final destinosFirestore = await DataMaster().obtenerDestinos();
-    final destinosExtra = destinosFirestore
-        .where((d) => d['nombre'] != 'Todos' && d['nombre'] != 'Local')
-        .map((d) => {'id': d['id']?.toString() ?? '', 'nombre': d['nombre'] ?? ''})
-        .toList();
-
+    final destinos = await DataMaster().obtenerDestinos();
     setState(() {
-      _destinos = [...destinosDefecto, ...destinosExtra];
+      _destinos = destinos
+          .map((d) => {
+                'id': d['id']?.toString() ?? '',
+                'nombre': d['nombre']?.toString() ?? '',
+              })
+          .toList();
       _destinosSeleccionados = {
-        for (var d in _destinos) d['id'] as String: false
+        for (var d in _destinos) d['id'] as String: false,
       };
     });
   }
@@ -152,12 +147,7 @@ class _RecibirProductoScreenState extends State<RecibirProductoScreen> {
     try {
       final productoId = data['id']?.toString() ?? '';
 
-      final String destinoClave;
-      if (destinosHabilitados.contains('todos')) {
-        destinoClave = 'todos';
-      } else {
-        destinoClave = destinosHabilitados.first;
-      }
+      final String destinoClave = destinosHabilitados.first;
 
       await DataMaster().registrarRecepcion(
         productoId: productoId,
