@@ -32,7 +32,7 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
   bool _guardando = false;
   String _error = '';
 
-  // NUEVA LÓGICA: Selección inteligente de destinos habilitados
+  // Control de destinos
   Map<String, bool> _destinosSeleccionados = {};
 
   final List<String> _motivosResta = [
@@ -93,11 +93,29 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
     });
   }
 
-  void _seleccionarProducto(Map<String, dynamic> producto) {
-    // Leemos el mapa de stock para saber qué destinos están habilitados
+  Future<void> _seleccionarProducto(Map<String, dynamic> producto) async {
+    // 1. Intentamos leer los destinos que ya tienen stock (Habilitados)
     Map<String, dynamic> stockMapa = {};
     if (producto['stockPorDestino'] != null && producto['stockPorDestino'].toString().isNotEmpty) {
       stockMapa = Map<String, dynamic>.from(jsonDecode(producto['stockPorDestino']));
+    }
+
+    // 2. Si el producto no tiene NINGÚN destino previo, cargamos todos los del sistema
+    // para que el operario pueda habilitarlo por primera vez.
+    if (stockMapa.isEmpty) {
+      final todosLosDestinos = await DataMaster().obtenerDestinos();
+      setState(() {
+        _destinosSeleccionados = {
+          for (var d in todosLosDestinos) (d['nombre'] as String): false
+        };
+      });
+    } else {
+      // Si ya tiene, solo mostramos los habilitados
+      setState(() {
+        _destinosSeleccionados = {
+          for (var nombre in stockMapa.keys) nombre: false
+        };
+      });
     }
 
     setState(() {
@@ -110,11 +128,6 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
       _cantidadController.clear();
       _otroController.clear();
       _error = '';
-
-      // Creamos los checks: solo aparecerán los destinos que ya existen en el producto
-      _destinosSeleccionados = {
-        for (var nombre in stockMapa.keys) nombre: false
-      };
     });
   }
 
@@ -129,7 +142,6 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
       return;
     }
 
-    // Obtenemos la lista de destinos seleccionados (los marcados con check)
     final listaDestinos = _destinosSeleccionados.entries
         .where((e) => e.value == true)
         .map((e) => e.key)
@@ -151,7 +163,6 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
 
     final data = _productoSeleccionado!;
 
-    // Validar contra stock global si es resta
     if (_tipoAjuste == 'resta') {
       final stockActual = (data['stockActual'] as num?)?.toInt() ?? 0;
       if (cantidad > stockActual) {
@@ -179,7 +190,7 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
         idioma: data['idioma'] as String,
         cantidad: cantidad,
         motivo: motivoFinal,
-        destinosIds: listaDestinos, // Enviamos la LISTA al DataMaster
+        destinosIds: listaDestinos,
       );
 
       if (mounted) {
@@ -372,7 +383,6 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Producto seleccionado
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -427,7 +437,6 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
         ),
         const SizedBox(height: 24),
 
-        // Tipo de ajuste
         const Text(
           'TIPO DE AJUSTE',
           style: TextStyle(
@@ -531,7 +540,7 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
 
         if (_tipoAjuste != null) ...[
           const Text(
-            'DESTINOS HABILITADOS',
+            'DESTINOS',
             style: TextStyle(
               color: AppColors.primary,
               fontSize: 13,
@@ -540,46 +549,28 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          if (_destinosSeleccionados.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange),
-              ),
-              child: const Text(
-                'Sin destinos habilitados en el sistema para este producto.',
-                style: TextStyle(
-                  color: Colors.orange,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            )
-          else
-            Column(
-              children: _destinosSeleccionados.keys.map((nombre) {
-                return CheckboxListTile(
-                  title: Text(
-                    nombre,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
+          Column(
+            children: _destinosSeleccionados.keys.map((nombre) {
+              return CheckboxListTile(
+                title: Text(
+                  nombre,
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
                   ),
-                  value: _destinosSeleccionados[nombre],
-                  activeColor: AppColors.primary,
-                  onChanged: (bool? value) {
-                    setState(() {
-                      _destinosSeleccionados[nombre] = value ?? false;
-                    });
-                  },
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                );
-              }).toList(),
-            ),
+                ),
+                value: _destinosSeleccionados[nombre],
+                activeColor: AppColors.primary,
+                onChanged: (bool? value) {
+                  setState(() {
+                    _destinosSeleccionados[nombre] = value ?? false;
+                  });
+                },
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+              );
+            }).toList(),
+          ),
           const SizedBox(height: 24),
 
           const Text(
