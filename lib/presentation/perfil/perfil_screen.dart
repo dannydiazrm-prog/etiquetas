@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/data/data_master.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/breakpoints.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PerfilScreen extends StatefulWidget {
   const PerfilScreen({super.key});
@@ -64,12 +65,28 @@ class _PerfilScreenState extends State<PerfilScreen> {
     setState(() => _loading = true);
 
     try {
-      final pinGuardado = await DataMaster().leerConfig('pin') ?? '';
+      final pinGuardado = await DataMaster().leerConfig('pin') ?? '1234';
 
       if (actual != pinGuardado) {
         setState(() => _mensaje = 'PIN actual incorrecto');
       } else {
+        // Guardar localmente
         await DataMaster().guardarConfig('pin', nuevo);
+
+        // Subir a Firestore inmediatamente — el PIN no espera sincronización
+        try {
+          await FirebaseFirestore.instance
+              .collection('config')
+              .doc('pin')
+              .set({'valor': nuevo});
+        } catch (_) {
+          // Sin internet: quedó guardado en SQLite.
+          // La próxima sincronización no lo sube automáticamente
+          // porque config no tiene flag sincronizado, pero al
+          // reconectarse _descargarConfig lo bajará desde Firestore.
+          // Si el operario reinstala sin haber tenido red, usará 1234.
+        }
+
         setState(() => _mensaje = 'PIN actualizado correctamente');
         _pinActualController.clear();
         _pinNuevoController.clear();

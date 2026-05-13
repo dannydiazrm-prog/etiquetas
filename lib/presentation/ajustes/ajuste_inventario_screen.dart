@@ -30,6 +30,9 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
   final _otroController = TextEditingController();
   bool _guardando = false;
   String _error = '';
+  List<Map<String, dynamic>> _destinos = [];
+  String? _destinoSeleccionadoId;
+  String? _destinoSeleccionadoNombre;
 
   final List<String> _motivosResta = [
     'Producto dañado',
@@ -44,6 +47,17 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
     'Producto encontrado',
     'Otro',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarDestinos();
+  }
+
+  Future<void> _cargarDestinos() async {
+    final destinos = await DataMaster().obtenerDestinos();
+    setState(() => _destinos = destinos);
+  }
 
   @override
   void dispose() {
@@ -95,6 +109,10 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
       setState(() => _error = 'Selecciona si es suma o resta');
       return;
     }
+    if (_destinoSeleccionadoId == null) {
+      setState(() => _error = 'Selecciona un destino');
+      return;
+    }
     if (_motivo == null) {
       setState(() => _error = 'Selecciona un motivo');
       return;
@@ -105,11 +123,14 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
     }
 
     final data = _productoSeleccionado!;
-    final stockActual = (data['stockActual'] ?? 0) as int;
+    final stockPorDestino =
+        Map<String, dynamic>.from(data['stockPorDestino'] ?? {});
+    final stockEnDestino =
+        (stockPorDestino[_destinoSeleccionadoId] as num?)?.toInt() ?? 0;
 
-    if (_tipoAjuste == 'resta' && cantidad > stockActual) {
-      setState(
-          () => _error = 'No puedes restar más del stock actual: $stockActual');
+    if (_tipoAjuste == 'resta' && cantidad > stockEnDestino) {
+      setState(() => _error =
+          'Stock insuficiente en $_destinoSeleccionadoNombre: $stockEnDestino unidades');
       return;
     }
 
@@ -123,16 +144,16 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
           _motivo == 'Otro' ? _otroController.text.trim() : _motivo!;
 
       await DataMaster().registrarAjuste(
-    tipo: 'ajuste_manual',
-    tipoAjuste: _tipoAjuste!,
-    productoId: data['id'] as String,
-    productoNombre: data['nombre'] as String,
-    tipoProducto: data['tipo'] as String,
-    idioma: data['idioma'] as String,
-    cantidad: cantidad,
-    motivo: motivoFinal,
-);
-
+        tipo: 'ajuste_manual',
+        tipoAjuste: _tipoAjuste!,
+        productoId: data['id'] as String,
+        productoNombre: data['nombre'] as String,
+        tipoProducto: data['tipo'] as String,
+        idioma: data['idioma'] as String,
+        cantidad: cantidad,
+        motivo: motivoFinal,
+        destinoId: _destinoSeleccionadoId!,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -147,7 +168,7 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
       setState(() => _error = 'Error al guardar. Intenta de nuevo.');
     }
 
-    setState(() => _guardando = false);
+    if (mounted) setState(() => _guardando = false);
   }
 
   @override
@@ -487,6 +508,50 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
         const SizedBox(height: 24),
 
         if (_tipoAjuste != null) ...[
+          const Text(
+            'DESTINO',
+            style: TextStyle(
+              color: AppColors.primary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _destinos.map((d) {
+              final id = d['id'] as String;
+              final nombre = d['nombre'] as String;
+              final seleccionado = _destinoSeleccionadoId == id;
+              return GestureDetector(
+                onTap: () => setState(() {
+                  _destinoSeleccionadoId = id;
+                  _destinoSeleccionadoNombre = nombre;
+                }),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: seleccionado ? AppColors.primary : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.primary),
+                  ),
+                  child: Text(
+                    nombre,
+                    style: TextStyle(
+                      color: seleccionado ? Colors.white : AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 24),
+
           const Text(
             'CANTIDAD',
             style: TextStyle(

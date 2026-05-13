@@ -80,25 +80,20 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
   }
 
   Future<void> _seleccionarProducto(Map<String, dynamic> data) async {
-    final stockPorDestino = Map<String, dynamic>.from(
-      data['stockPorDestino'] ?? {},
-    );
+    // Los destinos habilitados viven en la lista 'destinos' del producto
+    final destinosHabilitados = List<String>.from(data['destinos'] ?? []);
+    final todosLosDestinos = await DataMaster().obtenerDestinos();
 
     List<Map<String, dynamic>> destinosConStock = [];
 
-    for (final entry in stockPorDestino.entries) {
-      final id = entry.key;
-      final stock = (entry.value as num?)?.toInt() ?? 0;
-      if (stock <= 0) continue;
-
+    for (final id in destinosHabilitados) {
       String nombre;
       if (id == 'todos') {
         nombre = 'Todos';
       } else if (id == 'local') {
         nombre = 'Local';
       } else {
-        final destinos = await DataMaster().obtenerDestinos();
-        final match = destinos.firstWhere(
+        final match = todosLosDestinos.firstWhere(
           (d) => (d['id']?.toString() ?? '') == id,
           orElse: () => {'nombre': id},
         );
@@ -108,7 +103,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
       destinosConStock.add({
         'id': id,
         'nombre': nombre,
-        'stock': stock,
+        'stock': data['stockActual'] ?? 0, // El stock es el total del producto
       });
     }
 

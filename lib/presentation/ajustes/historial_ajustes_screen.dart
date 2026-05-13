@@ -52,9 +52,9 @@ class _HistorialAjustesScreenState extends State<HistorialAjustesScreen> {
     List<Map<String, dynamic>> filtrados = docs;
     if (_hojaAjuste && !_ajusteInventario) {
       filtrados = docs.where((d) => d['tipo'] == 'hoja_ajuste').toList();
-    } else if (_ajusteInventario && !_hojaAjuste) {
+   } else if (_ajusteInventario && !_hojaAjuste) {
       filtrados =
-          docs.where((d) => d['tipo'] == 'ajuste_inventario').toList();
+          docs.where((d) => d['tipo'] == 'ajuste_manual').toList();
     }
 
     // Ordenar por fecha descendente

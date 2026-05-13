@@ -114,17 +114,20 @@ class _HojaAjusteScreenState extends State<HojaAjusteScreen> {
     final data = _retiroSeleccionado!;
     final productoId = data['productoId'] as String;
 
-    // Verificar stock actual
+    // Verificar stock en el destino del retiro
     final producto = await DataMaster().obtenerProductoPorId(productoId);
-    final stockActual =
-        ((producto?['stockActual'] ?? 0) as num).toInt();
+    final destinoId = data['destinoId'] as String? ?? '';
+    final stockPorDestino =
+        Map<String, dynamic>.from(producto?['stockPorDestino'] ?? {});
+    final stockEnDestino =
+        (stockPorDestino[destinoId] as num?)?.toInt() ?? 0;
 
-    if (cantidad > stockActual) {
-      setState(
-          () => _error = 'Stock insuficiente. Stock actual: $stockActual');
+    if (cantidad > stockEnDestino) {
+      setState(() =>
+          _error = 'Stock insuficiente en este destino: $stockEnDestino unidades');
       return;
     }
-
+	
     setState(() {
       _guardando = true;
       _error = '';

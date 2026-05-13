@@ -71,7 +71,7 @@ class _GestionAjustesScreenState extends State<GestionAjustesScreen> {
     if (productoId == null || ajusteId == null) return;
 
     // Solo bloquear si es entrada y hubo retiros después
-    if (tipoAjuste == 'entrada') {
+    if (tipoAjuste == 'entrada' || tipoAjuste == 'suma') {
       final fechaAjuste = data['fecha'] as String?;
       final retiros = await DataMaster().obtenerRetiros();
       final retirosPosteriores = retiros.where((r) {
