@@ -150,15 +150,11 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
     }
 
     final data = _productoSeleccionado!;
-    final stockPorDestino = Map<String, dynamic>.from(
-      data['stockPorDestino'] ?? {},
-    );
-    final stockDisponible =
-        (stockPorDestino[_destinoSeleccionadoId!] as num?)?.toInt() ?? 0;
+    final stockDisponible = (data['stockActual'] as num?)?.toInt() ?? 0;
 
     if (cantidadEntregada > stockDisponible) {
       setState(() =>
-          _error = 'Stock insuficiente para este destino: $stockDisponible');
+          _error = 'Stock insuficiente. Stock disponible: $stockDisponible');
       return;
     }
 
