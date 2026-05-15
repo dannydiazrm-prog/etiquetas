@@ -29,12 +29,16 @@ class DataMaster {
     final path = join(dir.path, 'galmedic.db');
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _crearTablas,
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           await db.execute(
               'ALTER TABLE productos ADD COLUMN eliminado INTEGER NOT NULL DEFAULT 0');
+        }
+        if (oldVersion < 3) {
+          await db.execute(
+              'ALTER TABLE retiros ADD COLUMN codigoRecepcion TEXT NOT NULL DEFAULT \'\'');
         }
       },
     );
@@ -51,13 +55,13 @@ class DataMaster {
         stockPorDestino TEXT NOT NULL DEFAULT '{}',
         destinos TEXT NOT NULL DEFAULT '[]',
         creadoEn TEXT,
-        sincronizado INTEGER NOT NULL DEFAULT 1,
-        eliminado INTEGER NOT NULL DEFAULT 0
+        codigoRecepcion TEXT NOT NULL DEFAULT '',
+        sincronizado INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
     await db.execute('''
-      CREATE TABLE destinos (
+      CREATE TABLE recepciones (
         id TEXT PRIMARY KEY,
         nombre TEXT NOT NULL,
         editable INTEGER NOT NULL DEFAULT 1,
@@ -544,13 +548,19 @@ class DataMaster {
       orderBy: 'fecha ASC',
     );
 
+    // Agrupar por combinación de destinos Y prefijo de código
     final Map<String, Map<String, dynamic>> combinaciones = {};
 
     for (final row in rows) {
       final destinos = List<String>.from(
         jsonDecode(row['destinos'] as String? ?? '[]') as List,
       );
-      final clave = (List<String>.from(destinos)..sort()).join(',');
+      final codigo = (row['codigo'] ?? '').toString();
+      final prefijo = codigo.length >= 2 ? codigo.substring(0, 2) : codigo;
+
+      // La clave incluye tanto los destinos como el prefijo
+      final destinosClave = (List<String>.from(destinos)..sort()).join(',');
+      final clave = '$destinosClave|$prefijo';
 
       if (combinaciones.containsKey(clave)) {
         combinaciones[clave]!['cantidad'] =
@@ -561,13 +571,14 @@ class DataMaster {
           'destinosIds': destinos,
           'cantidad': (row['cantidad'] as num?)?.toInt() ?? 0,
           'clave': clave,
+          'prefijo': prefijo,
         };
       }
     }
 
     return combinaciones.values.toList();
   }
-
+  
   // ─────────────────────────────────────────
   // RETIROS
   // ─────────────────────────────────────────
@@ -583,6 +594,7 @@ class DataMaster {
     required String destinoId,
     required int cantidadEstimada,
     required int cantidadEntregada,
+    String codigoRecepcion = '',
   }) async {
     final database = await db;
     final producto = await obtenerProductoPorId(productoId);
@@ -624,6 +636,7 @@ class DataMaster {
         'estado': hayPendiente ? 'pendiente' : 'cerrado',
         'fecha': fecha,
         'fechaCierre': hayPendiente ? null : fecha,
+		'codigoRecepcion': codigoRecepcion,
         'sincronizado': 0,
       });
 
@@ -893,19 +906,28 @@ class DataMaster {
     for (final r in retiros) {
       final productoId = r['productoId']?.toString();
       final consumo = (r['consumoReal'] as num?)?.toInt() ?? 0;
+      final codigoRetiro = (r['codigoRecepcion'] ?? '').toString();
       if (productoId == null || consumo <= 0) continue;
       if (!stockPorPrefijo.containsKey(productoId)) continue;
 
       final mapa = stockPorPrefijo[productoId]!;
-      int restante = consumo;
-      final claves = mapa.keys.toList()
-        ..sort((a, b) => (mapa[b] ?? 0).compareTo(mapa[a] ?? 0));
-      for (final clave in claves) {
-        if (restante <= 0) break;
-        final disponible = mapa[clave] ?? 0;
-        final descontar = restante > disponible ? disponible : restante;
-        mapa[clave] = disponible - descontar;
-        restante -= descontar;
+
+      if (codigoRetiro.isNotEmpty && mapa.containsKey(codigoRetiro)) {
+        // Descontar exactamente del prefijo correcto
+        final disponible = mapa[codigoRetiro] ?? 0;
+        mapa[codigoRetiro] = (disponible - consumo).clamp(0, double.maxFinite).toInt();
+      } else {
+        // Fallback — descontar del prefijo con más stock
+        int restante = consumo;
+        final claves = mapa.keys.toList()
+          ..sort((a, b) => (mapa[b] ?? 0).compareTo(mapa[a] ?? 0));
+        for (final clave in claves) {
+          if (restante <= 0) break;
+          final disponible = mapa[clave] ?? 0;
+          final descontar = restante > disponible ? disponible : restante;
+          mapa[clave] = disponible - descontar;
+          restante -= descontar;
+        }
       }
     }
 

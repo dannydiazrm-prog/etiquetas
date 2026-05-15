@@ -171,11 +171,11 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
       return;
     }
 
-    // Usar el primer destino de la combinación como destinoId principal
     final destinosIds =
         List<String>.from(_combinacionSeleccionada!['destinosIds'] as List);
     final destinoId = destinosIds.first;
     final destinoNombre = _nombresCombinacion(destinosIds);
+    final codigoRecepcion = _combinacionSeleccionada!['prefijo'] as String? ?? '';
 
     setState(() {
       _guardando = true;
@@ -480,7 +480,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         _buildLabel('GRUPO DE DESTINOS'),
         const SizedBox(height: 4),
         const Text(
-          'Seleccioná el grupo al que pertenece este retiro',
+          'Selecciona el grupo al que pertenece este retiro',
           style: TextStyle(color: AppColors.primary, fontSize: 11),
         ),
         const SizedBox(height: 12),
