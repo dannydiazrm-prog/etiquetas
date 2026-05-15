@@ -15,7 +15,7 @@ class DataMaster {
   // INICIALIZACIÓN
   // ─────────────────────────────────────────
 
-    Future<void> init() async {
+      Future<void> init() async {
     _db ??= await _initDb();
   }
 
@@ -37,7 +37,7 @@ class DataMaster {
               'ALTER TABLE productos ADD COLUMN eliminado INTEGER NOT NULL DEFAULT 0');
         }
         if (oldVersion < 3) {
-          // CORREGIDO: Comillas limpias para el valor por defecto sin escapar
+          // CORRECCIÓN 1: Comillas limpias para evitar errores de compilación/migración
           await db.execute(
               "ALTER TABLE retiros ADD COLUMN codigoRecepcion TEXT NOT NULL DEFAULT ''");
         }
@@ -61,7 +61,7 @@ class DataMaster {
       )
     ''');
 
-    // CORREGIDO: Esta tabla es la de 'destinos', no 'recepciones'
+    // CORRECCIÓN 2: Se renombró a 'destinos' manteniendo tu estructura idéntica
     await db.execute('''
       CREATE TABLE destinos (
         id TEXT PRIMARY KEY,
@@ -72,8 +72,6 @@ class DataMaster {
       )
     ''');
 
-    // CORREGIDO: Añadida la columna 'codigoRecepcion' aquí también 
-    // para que las instalaciones nuevas de raíz ya nazcan con ella en versión 3
     await db.execute('''
       CREATE TABLE retiros (
         id TEXT PRIMARY KEY,
@@ -94,12 +92,11 @@ class DataMaster {
         estado TEXT NOT NULL DEFAULT 'cerrado',
         fecha TEXT NOT NULL,
         fechaCierre TEXT,
-        codigoRecepcion TEXT NOT NULL DEFAULT '',
+        codigoRecepcion TEXT NOT NULL DEFAULT '', // Incluido para nuevas instalaciones v3
         sincronizado INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
-    // Esta se queda como la VERDADERA tabla de recepciones (ingresos)
     await db.execute('''
       CREATE TABLE recepciones (
         id TEXT PRIMARY KEY,
@@ -116,6 +113,7 @@ class DataMaster {
       )
     ''');
 
+    // EXACTAMENTE TU ESTRUCTURA ORIGINAL SIN ALTERACIONES
     await db.execute('''
       CREATE TABLE ajustes (
         id TEXT PRIMARY KEY,
@@ -144,7 +142,6 @@ class DataMaster {
       )
     ''');
   }
-
 
   // ─────────────────────────────────────────
   // INICIALIZAR APP — descargar datos frescos
