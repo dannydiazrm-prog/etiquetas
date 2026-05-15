@@ -29,13 +29,12 @@ class DataMaster {
     final path = join(dir.path, 'galmedic.db');
     return openDatabase(
       path,
-      // Se subió la versión a 2 para permitir la nueva columna 'eliminado'
-      version: 2, 
+      version: 2,
       onCreate: _crearTablas,
-      // Esta función agrega la columna 'eliminado' sin borrar tus datos actuales
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
-          await db.execute('ALTER TABLE productos ADD COLUMN eliminado INTEGER NOT NULL DEFAULT 0');
+          await db.execute(
+              'ALTER TABLE productos ADD COLUMN eliminado INTEGER NOT NULL DEFAULT 0');
         }
       },
     );
@@ -156,7 +155,6 @@ class DataMaster {
     final database = await db;
 
     for (final doc in snapshot.docs) {
-      // Antes de sobrescribir, verificar si hay cambios locales pendientes
       final local = await database.query(
         'productos',
         where: 'id = ?',
@@ -166,8 +164,6 @@ class DataMaster {
       if (local.isNotEmpty) {
         final tienePendientes = local.first['sincronizado'] == 0;
         final estaEliminadoLocalmente = local.first['eliminado'] == 1;
-
-        // Si tiene cambios sin subir o está marcado para borrar, no tocar
         if (tienePendientes || estaEliminadoLocalmente) continue;
       }
 
@@ -220,8 +216,6 @@ class DataMaster {
         .get();
     if (pinDoc.exists) {
       final pinRemoto = pinDoc.data()?['valor']?.toString() ?? '';
-      // Solo guardar si el PIN remoto es válido (4 dígitos numéricos)
-      // Nunca escribir un string vacío o inválido que bloquee el acceso
       if (pinRemoto.length == 4 && int.tryParse(pinRemoto) != null) {
         await guardarConfig('pin', pinRemoto);
       }
@@ -274,7 +268,6 @@ class DataMaster {
     String? nombre,
   }) async {
     final database = await db;
-    // Se agregó 'eliminado = 0' para que no se muestren productos borrados offline
     String where = 'eliminado = 0';
     List<dynamic> args = [];
 
@@ -371,7 +364,6 @@ class DataMaster {
 
   Future<void> eliminarProducto({required String id}) async {
     final database = await db;
-    // Ahora marca el producto como eliminado en lugar de borrarlo físicamente
     await database.update(
       'productos',
       {
@@ -454,36 +446,35 @@ class DataMaster {
     if (producto == null) return;
 
     // Stock global — suma la cantidad recibida al total
-    final nuevoStockTotal = stockDisponible - cantidadEntregada;
+    final nuevoStockTotal =
+        ((producto['stockActual'] as num?)?.toInt() ?? 0) + cantidad;
 
-    // Descontar del cupo del destino en stockPorDestino
+    // Actualizar stockPorDestino sumando a cada destino habilitado
     final stockPorDestino =
         Map<String, dynamic>.from(producto['stockPorDestino'] ?? {});
-    final stockDestinoActual =
-        (stockPorDestino[destinoId] as num?)?.toInt() ?? 0;
-    stockPorDestino[destinoId] =
-        (stockDestinoActual - cantidadEntregada).clamp(0, double.maxFinite).toInt();
+    for (final d in destinos) {
+      final actual = (stockPorDestino[d] as num?)?.toInt() ?? 0;
+      stockPorDestino[d] = actual + cantidad;
+    }
+
+    // Agregar destinos nuevos sin duplicar
+    final destinosActuales = List<String>.from(producto['destinos'] ?? []);
+    for (final d in destinos) {
+      if (!destinosActuales.contains(d)) destinosActuales.add(d);
+    }
 
     await database.transaction((txn) async {
-      await txn.insert('retiros', {
+      await txn.insert('recepciones', {
         'id': id,
         'productoId': productoId,
         'productoNombre': productoNombre,
         'tipo': tipo,
         'idioma': idioma,
-        'companero': companero,
-        'lote': lote,
-        'destino': destino,
-        'destinoId': destinoId,
-        'cantidadEstimada': cantidadEstimada,
-        'cantidadEntregada': cantidadEntregada,
-        'cantidadDevuelta': 0,
-        'consumoReal': hayPendiente ? null : cantidadEntregada,
-        'perdida': hayPendiente ? null : 0,
-        'motivoCierre': hayPendiente ? null : 'Entrega exacta o menor',
-        'estado': hayPendiente ? 'pendiente' : 'cerrado',
+        'cantidad': cantidad,
+        'codigo': codigo,
+        'destinoClave': destinoClave,
+        'destinos': jsonEncode(destinos),
         'fecha': fecha,
-        'fechaCierre': hayPendiente ? null : fecha,
         'sincronizado': 0,
       });
 
@@ -492,6 +483,7 @@ class DataMaster {
         {
           'stockActual': nuevoStockTotal,
           'stockPorDestino': jsonEncode(stockPorDestino),
+          'destinos': jsonEncode(destinosActuales),
           'sincronizado': 0,
         },
         where: 'id = ?',
@@ -596,16 +588,21 @@ class DataMaster {
     final producto = await obtenerProductoPorId(productoId);
     if (producto == null) return false;
 
-    // El stock es global — validar contra el total del producto
     final stockDisponible = (producto['stockActual'] as num?)?.toInt() ?? 0;
-
     if (cantidadEntregada > stockDisponible) return false;
 
     final hayPendiente = cantidadEntregada > cantidadEstimada;
     final id = 'local_${DateTime.now().millisecondsSinceEpoch}';
     final fecha = DateTime.now().toIso8601String();
-
     final nuevoStockTotal = stockDisponible - cantidadEntregada;
+
+    // Descontar del cupo del destino en stockPorDestino
+    final stockPorDestino =
+        Map<String, dynamic>.from(producto['stockPorDestino'] ?? {});
+    final stockDestinoActual =
+        (stockPorDestino[destinoId] as num?)?.toInt() ?? 0;
+    stockPorDestino[destinoId] =
+        (stockDestinoActual - cantidadEntregada).clamp(0, double.maxFinite).toInt();
 
     await database.transaction((txn) async {
       await txn.insert('retiros', {
@@ -693,15 +690,9 @@ class DataMaster {
     final producto = await obtenerProductoPorId(productoId);
     if (producto == null) return;
 
-  final stockActual = (producto['stockActual'] as num?)?.toInt() ?? 0;
+    final stockActual = (producto['stockActual'] as num?)?.toInt() ?? 0;
     final nuevoStockTotal = stockActual + cantidadDevuelta;
 
-final stockPorDestino =
-        Map<String, dynamic>.from(producto['stockPorDestino'] ?? {});
-    final stockDestinoActual =
-        (stockPorDestino[destinoId] as num?)?.toInt() ?? 0;
-    stockPorDestino[destinoId] = stockDestinoActual + cantidadDevuelta;
-	
     // Devolver al cupo del destino en stockPorDestino
     final stockPorDestino =
         Map<String, dynamic>.from(producto['stockPorDestino'] ?? {});
@@ -719,14 +710,6 @@ final stockPorDestino =
     final entregada = (retiro['cantidadEntregada'] as num).toInt();
     final consumoReal = entregada - cantidadDevuelta;
 
-
-final stockPorDestino =
-        Map<String, dynamic>.from(producto['stockPorDestino'] ?? {});
-    final stockDestinoActual =
-        (stockPorDestino[destinoId] as num?)?.toInt() ?? 0;
-    stockPorDestino[destinoId] =
-        (stockDestinoActual - cantidadEntregada).clamp(0, double.maxFinite).toInt();
-		
     await database.transaction((txn) async {
       await txn.update(
         'retiros',
@@ -760,7 +743,7 @@ final stockPorDestino =
   // AJUSTES
   // ─────────────────────────────────────────
 
-    Future<void> registrarAjuste({
+  Future<void> registrarAjuste({
     required String tipo,
     required String tipoAjuste,
     required String productoId,
@@ -769,7 +752,7 @@ final stockPorDestino =
     required String idioma,
     required int cantidad,
     required String motivo,
-    required List<String> destinosIds, // Cambiado a List para soportar la selección múltiple
+    required List<String> destinosIds,
     String? lote,
     String? companero,
     String? retiroId,
@@ -778,16 +761,16 @@ final stockPorDestino =
     final producto = await obtenerProductoPorId(productoId);
     if (producto == null) return;
 
-    // Recuperamos el mapa de habilitaciones actual
     Map<String, int> stockPorDestino = {};
-    if (producto['stockPorDestino'] != null && producto['stockPorDestino'].toString().isNotEmpty) {
-      stockPorDestino = Map<String, int>.from(jsonDecode(producto['stockPorDestino']));
+    if (producto['stockPorDestino'] != null &&
+        producto['stockPorDestino'].toString().isNotEmpty) {
+      stockPorDestino =
+          Map<String, int>.from(producto['stockPorDestino'] as Map);
     }
 
-    final stockAnterior = producto['stockActual'] as int;
+    final stockAnterior = (producto['stockActual'] as num).toInt();
     int nuevoStockTotal = stockAnterior;
 
-    // Aplicamos el ajuste de forma inteligente al total y a cada destino marcado
     if (tipoAjuste == 'suma') {
       nuevoStockTotal += cantidad;
       for (var dId in destinosIds) {
@@ -797,7 +780,8 @@ final stockPorDestino =
       nuevoStockTotal = (stockAnterior - cantidad).clamp(0, 9999999).toInt();
       for (var dId in destinosIds) {
         int stockEnDestino = stockPorDestino[dId] ?? 0;
-        stockPorDestino[dId] = (stockEnDestino - cantidad).clamp(0, 9999999).toInt();
+        stockPorDestino[dId] =
+            (stockEnDestino - cantidad).clamp(0, 9999999).toInt();
       }
     }
 
@@ -817,7 +801,7 @@ final stockPorDestino =
         'motivo': motivo,
         'stockAnterior': stockAnterior,
         'stockNuevo': nuevoStockTotal,
-        'destinoId': destinosIds.join(','), // Guardamos los IDs seleccionados
+        'destinoId': destinosIds.join(','),
         'lote': lote,
         'companero': companero,
         'retiroId': retiroId,
@@ -829,7 +813,7 @@ final stockPorDestino =
         'productos',
         {
           'stockActual': nuevoStockTotal,
-          'stockPorDestino': jsonEncode(stockPorDestino), // Actualizamos las habilitaciones
+          'stockPorDestino': jsonEncode(stockPorDestino),
           'sincronizado': 0,
         },
         where: 'id = ?',
@@ -870,7 +854,6 @@ final stockPorDestino =
     return rows.map((r) => Map<String, dynamic>.from(r)).toList();
   }
 
-
   // ─────────────────────────────────────────
   // PREFIJOS
   // ─────────────────────────────────────────
@@ -886,7 +869,6 @@ final stockPorDestino =
       List<String> prefijos) async {
     final database = await db;
 
-    // Sumar recepciones por productoId y prefijo
     final recepciones = await database.query('recepciones');
     final Map<String, Map<String, int>> stockPorPrefijo = {};
 
@@ -902,7 +884,6 @@ final stockPorDestino =
           (stockPorPrefijo[productoId]![prefijo] ?? 0) + cantidad;
     }
 
-    // Descontar retiros cerrados por productoId
     final retiros = await database.query(
       'retiros',
       where: 'estado = ?',
@@ -915,7 +896,6 @@ final stockPorDestino =
       if (productoId == null || consumo <= 0) continue;
       if (!stockPorPrefijo.containsKey(productoId)) continue;
 
-      // Descontar proporcionalmente del prefijo con más stock
       final mapa = stockPorPrefijo[productoId]!;
       int restante = consumo;
       final claves = mapa.keys.toList()
@@ -975,83 +955,82 @@ final stockPorDestino =
   }
 
   Future<void> _sincronizarProductos() async {
-  final database = await db;
-  final pendientes = await database.query(
-    'productos',
-    where: 'sincronizado = 0',
-  );
+    final database = await db;
+    final pendientes = await database.query(
+      'productos',
+      where: 'sincronizado = 0',
+    );
 
-  for (final row in pendientes) {
-    final idLocal = row['id'] as String;
+    for (final row in pendientes) {
+      final idLocal = row['id'] as String;
 
-    // ── CASO: SOFT DELETE ──────────────────────────────────────
-    if (row['eliminado'] == 1) {
-      if (!idLocal.startsWith('local_')) {
+      // ── CASO: SOFT DELETE ──────────────────────────────────────
+      if (row['eliminado'] == 1) {
+        if (!idLocal.startsWith('local_')) {
+          await FirebaseFirestore.instance
+              .collection('productos')
+              .doc(idLocal)
+              .delete();
+        }
+        await database.delete(
+          'productos',
+          where: 'id = ?',
+          whereArgs: [idLocal],
+        );
+        continue;
+      }
+
+      final data = {
+        'nombre': row['nombre'],
+        'tipo': row['tipo'],
+        'idioma': row['idioma'],
+        'stockActual': row['stockActual'],
+        'stockPorDestino': jsonDecode(row['stockPorDestino'] as String),
+        'destinos': jsonDecode(row['destinos'] as String),
+      };
+
+      // ── CASO: NUEVO (id local) ─────────────────────────────────
+      if (idLocal.startsWith('local_')) {
+        final ref = FirebaseFirestore.instance.collection('productos').doc();
+        await ref.set({...data, 'creadoEn': FieldValue.serverTimestamp()});
+
+        final idReal = ref.id;
+
+        await database.update(
+          'productos',
+          {'id': idReal, 'sincronizado': 1},
+          where: 'id = ?',
+          whereArgs: [idLocal],
+        );
+
+        // BARRIDO — propagar el ID real a todas las tablas hijas
+        for (final tabla in ['retiros', 'recepciones', 'ajustes']) {
+          await database.update(
+            tabla,
+            {
+              'productoId': idReal,
+              'sincronizado': 0,
+            },
+            where: 'productoId = ?',
+            whereArgs: [idLocal],
+          );
+        }
+
+      // ── CASO: ACTUALIZACIÓN (id ya real) ───────────────────────
+      } else {
         await FirebaseFirestore.instance
             .collection('productos')
             .doc(idLocal)
-            .delete();
-      }
-      await database.delete(
-        'productos',
-        where: 'id = ?',
-        whereArgs: [idLocal],
-      );
-      continue;
-    }
-
-    final data = {
-      'nombre': row['nombre'],
-      'tipo': row['tipo'],
-      'idioma': row['idioma'],
-      'stockActual': row['stockActual'],
-      'stockPorDestino': jsonDecode(row['stockPorDestino'] as String),
-      'destinos': jsonDecode(row['destinos'] as String),
-    };
-
-    // ── CASO: NUEVO (id local) — aquí vivía el bug ─────────────
-    if (idLocal.startsWith('local_')) {
-      final ref = FirebaseFirestore.instance.collection('productos').doc();
-      await ref.set({...data, 'creadoEn': FieldValue.serverTimestamp()});
-
-      final idReal = ref.id;
-
-      // 1. Actualizar el propio producto con el ID real
-      await database.update(
-        'productos',
-        {'id': idReal, 'sincronizado': 1},
-        where: 'id = ?',
-        whereArgs: [idLocal],
-      );
-
-      // 2. BARRIDO — propagar el ID real a todas las tablas hijas
-      for (final tabla in ['retiros', 'recepciones', 'ajustes']) {
+            .update(data);
         await database.update(
-          tabla,
-          {
-            'productoId': idReal,
-            'sincronizado': 0, // Forzar re-sincronización con el ID correcto
-          },
-          where: 'productoId = ?',
+          'productos',
+          {'sincronizado': 1},
+          where: 'id = ?',
           whereArgs: [idLocal],
         );
       }
-
-    // ── CASO: ACTUALIZACIÓN (id ya real) ───────────────────────
-    } else {
-      await FirebaseFirestore.instance
-          .collection('productos')
-          .doc(idLocal)
-          .update(data);
-      await database.update(
-        'productos',
-        {'sincronizado': 1},
-        where: 'id = ?',
-        whereArgs: [idLocal],
-      );
     }
   }
-}
 
   Future<void> _sincronizarDestinos() async {
     final database = await db;
@@ -1233,7 +1212,6 @@ final stockPorDestino =
 
     final productoId = recepcion['productoId'] as String?;
     final cantidad = (recepcion['cantidad'] as num?)?.toInt() ?? 0;
-    final destinoClave = recepcion['destinoClave'] as String? ?? 'todos';
     final codigo = (recepcion['codigo'] ?? '').toString();
 
     if (productoId == null) return false;
@@ -1251,7 +1229,19 @@ final stockPorDestino =
     if (producto == null) return false;
 
     // Stock global — restar la cantidad de la recepción eliminada
-    final nuevoStockTotal = ((producto['stockActual'] as num?)?.toInt() ?? 0) - cantidad;
+    final nuevoStockTotal =
+        ((producto['stockActual'] as num?)?.toInt() ?? 0) - cantidad;
+
+    // Restar del stockPorDestino los destinos de esta recepción
+    final destinosRecepcion = List<String>.from(
+      jsonDecode(recepcion['destinos'] as String? ?? '[]') as List,
+    );
+    final stockPorDestino =
+        Map<String, dynamic>.from(producto['stockPorDestino'] ?? {});
+    for (final d in destinosRecepcion) {
+      final actual = (stockPorDestino[d] as num?)?.toInt() ?? 0;
+      stockPorDestino[d] = (actual - cantidad).clamp(0, double.maxFinite).toInt();
+    }
 
     // Recalcular destinos vigentes después de eliminar esta recepción
     final recepcionesRestantes = await database.query(
@@ -1275,6 +1265,7 @@ final stockPorDestino =
         'productos',
         {
           'stockActual': nuevoStockTotal.clamp(0, double.maxFinite).toInt(),
+          'stockPorDestino': jsonEncode(stockPorDestino),
           'destinos': jsonEncode(destinosVigentes.toList()),
           'sincronizado': 0,
         },
@@ -1282,6 +1273,7 @@ final stockPorDestino =
         whereArgs: [productoId],
       );
     });
+
     if (codigo.length >= 2) {
       final prefijo = codigo.substring(0, 2);
       final otras = await database.query(
@@ -1289,8 +1281,8 @@ final stockPorDestino =
         where: 'productoId = ? AND id != ?',
         whereArgs: [productoId, recepcionId],
       );
-      final quedanConPrefijo = otras
-          .any((r) => (r['codigo'] as String? ?? '').startsWith(prefijo));
+      final quedanConPrefijo =
+          otras.any((r) => (r['codigo'] as String? ?? '').startsWith(prefijo));
       if (!quedanConPrefijo) {
         final usados = await obtenerPrefijosUsados();
         usados.remove(prefijo);
@@ -1317,7 +1309,6 @@ final stockPorDestino =
 
     final productoId = recepcion['productoId'] as String?;
     final cantidadOriginal = (recepcion['cantidad'] as num?)?.toInt() ?? 0;
-    final destinoClave = recepcion['destinoClave'] as String? ?? 'todos';
 
     if (productoId == null) return false;
 
@@ -1326,9 +1317,21 @@ final stockPorDestino =
     final producto = await obtenerProductoPorId(productoId);
     if (producto == null) return false;
 
-    // El stock es global — aplicamos la diferencia directamente al total
     final stockActual = (producto['stockActual'] as num?)?.toInt() ?? 0;
-    final nuevoStockTotal = (stockActual + diferencia).clamp(0, double.maxFinite).toInt();
+    final nuevoStockTotal =
+        (stockActual + diferencia).clamp(0, double.maxFinite).toInt();
+
+    // Actualizar stockPorDestino con la diferencia
+    final destinosRecepcion = List<String>.from(
+      jsonDecode(recepcion['destinos'] as String? ?? '[]') as List,
+    );
+    final stockPorDestino =
+        Map<String, dynamic>.from(producto['stockPorDestino'] ?? {});
+    for (final d in destinosRecepcion) {
+      final actual = (stockPorDestino[d] as num?)?.toInt() ?? 0;
+      stockPorDestino[d] =
+          (actual + diferencia).clamp(0, double.maxFinite).toInt();
+    }
 
     await database.transaction((txn) async {
       await txn.update(
@@ -1341,6 +1344,7 @@ final stockPorDestino =
         'productos',
         {
           'stockActual': nuevoStockTotal,
+          'stockPorDestino': jsonEncode(stockPorDestino),
           'sincronizado': 0,
         },
         where: 'id = ?',
@@ -1378,8 +1382,7 @@ final stockPorDestino =
         'SELECT COUNT(*) as count FROM retiros WHERE productoId = ? AND fecha >= ?',
         [productoId, fechaAjuste ?? ''],
       );
-      final cantidad =
-          (retirosPosteriores.first['count'] as int?) ?? 0;
+      final cantidad = (retirosPosteriores.first['count'] as int?) ?? 0;
       if (cantidad > 0) return false;
     }
 
@@ -1539,7 +1542,6 @@ final stockPorDestino =
   }
 
   Future<String> obtenerPin() async {
-    // Se mejoró la lógica del PIN para que siempre devuelva un String y use 1234 de respaldo
     try {
       final snap = await FirebaseFirestore.instance
           .collection('config')
@@ -1549,10 +1551,9 @@ final stockPorDestino =
         return snap.data()?['valor']?.toString() ?? '1234';
       }
     } catch (e) {
-      // Si falla la red, intenta leer el PIN local si lo guardamos antes
       final pinLocal = await leerConfig('pin');
       if (pinLocal != null) return pinLocal;
     }
-    return '1234'; 
+    return '1234';
   }
 }
