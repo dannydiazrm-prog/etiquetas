@@ -28,11 +28,31 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
   final _loteController = TextEditingController();
   final _cantidadEstimadaController = TextEditingController();
   final _cantidadEntregadaController = TextEditingController();
-  String? _destinoSeleccionado;
-  String? _destinoSeleccionadoId;
-  List<Map<String, dynamic>> _destinosConStock = [];
+
+  // Combinaciones de destinos por recepción
+  List<Map<String, dynamic>> _combinaciones = [];
+  Map<String, dynamic>? _combinacionSeleccionada;
+
+  // Mapa de nombre por ID de destino
+  Map<String, String> _nombresDestinos = {};
+
   bool _guardando = false;
   String _error = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarNombresDestinos();
+  }
+
+  Future<void> _cargarNombresDestinos() async {
+    final destinos = await DataMaster().obtenerDestinos();
+    setState(() {
+      _nombresDestinos = {
+        for (final d in destinos) d['id'].toString(): d['nombre'].toString(),
+      };
+    });
+  }
 
   @override
   void dispose() {
@@ -72,6 +92,9 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
       }).toList();
     }
 
+    // Solo mostrar productos con stock
+    docs = docs.where((d) => ((d['stockActual'] as num?)?.toInt() ?? 0) > 0).toList();
+
     setState(() {
       _resultados = docs;
       _buscando = false;
@@ -80,44 +103,34 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
   }
 
   Future<void> _seleccionarProducto(Map<String, dynamic> data) async {
-    // Los destinos habilitados viven en la lista 'destinos' del producto
-    final destinosHabilitados = List<String>.from(data['destinos'] ?? []);
-    final todosLosDestinos = await DataMaster().obtenerDestinos();
+    final combinaciones = await DataMaster()
+        .obtenerCombinacionesRecepcion(data['id'] as String);
 
-    List<Map<String, dynamic>> destinosConStock = [];
+    // Filtrar combinaciones que tengan stock disponible en stockPorDestino
+    final stockPorDestino =
+        Map<String, dynamic>.from(data['stockPorDestino'] ?? {});
 
-    for (final id in destinosHabilitados) {
-      String nombre;
-      if (id == 'todos') {
-        nombre = 'Todos';
-      } else if (id == 'local') {
-        nombre = 'Local';
-      } else {
-        final match = todosLosDestinos.firstWhere(
-          (d) => (d['id']?.toString() ?? '') == id,
-          orElse: () => {'nombre': id},
-        );
-        nombre = match['nombre']?.toString() ?? id;
-      }
-
-      destinosConStock.add({
-        'id': id,
-        'nombre': nombre,
-        'stock': data['stockActual'] ?? 0, // El stock es el total del producto
-      });
-    }
+    final combinacionesConStock = combinaciones.where((c) {
+      final ids = List<String>.from(c['destinosIds'] as List);
+      // La combinación tiene stock si alguno de sus destinos tiene stock
+      return ids.any((id) => ((stockPorDestino[id] as num?)?.toInt() ?? 0) > 0);
+    }).toList();
 
     setState(() {
       _productoSeleccionado = data;
-      _destinosConStock = destinosConStock;
-      _destinoSeleccionado = null;
-      _destinoSeleccionadoId = null;
+      _combinaciones = combinacionesConStock;
+      _combinacionSeleccionada = null;
       _companeroController.clear();
       _loteController.clear();
       _cantidadEstimadaController.clear();
       _cantidadEntregadaController.clear();
       _error = '';
     });
+  }
+
+  String _nombresCombinacion(List<String> ids) {
+    final nombres = ids.map((id) => _nombresDestinos[id] ?? id).toList();
+    return nombres.join(' · ');
   }
 
   Future<void> _confirmar() async {
@@ -136,8 +149,8 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
       setState(() => _error = 'Ingresa el número de lote');
       return;
     }
-    if (_destinoSeleccionadoId == null) {
-      setState(() => _error = 'Selecciona un destino');
+    if (_combinacionSeleccionada == null) {
+      setState(() => _error = 'Selecciona un grupo de destinos');
       return;
     }
     if (cantidadEstimada == null || cantidadEstimada <= 0) {
@@ -158,6 +171,12 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
       return;
     }
 
+    // Usar el primer destino de la combinación como destinoId principal
+    final destinosIds =
+        List<String>.from(_combinacionSeleccionada!['destinosIds'] as List);
+    final destinoId = destinosIds.first;
+    final destinoNombre = _nombresCombinacion(destinosIds);
+
     setState(() {
       _guardando = true;
       _error = '';
@@ -173,8 +192,8 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         idioma: data['idioma'] ?? '',
         companero: companero,
         lote: lote,
-        destino: _destinoSeleccionado ?? '',
-        destinoId: _destinoSeleccionadoId!,
+        destino: destinoNombre,
+        destinoId: destinoId,
         cantidadEstimada: cantidadEstimada,
         cantidadEntregada: cantidadEntregada,
       );
@@ -245,8 +264,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
           controller: _nombreController,
           decoration: InputDecoration(
             hintText: 'Buscar por nombre',
-            prefixIcon:
-                const Icon(Icons.search, color: AppColors.primary),
+            prefixIcon: const Icon(Icons.search, color: AppColors.primary),
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(
@@ -269,10 +287,10 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
                 (v) => setState(() => _etiquetas = v)),
             _buildChip('Prospectos', _prospectos,
                 (v) => setState(() => _prospectos = v)),
-            _buildChip('Español', _espanol,
-                (v) => setState(() => _espanol = v)),
-            _buildChip('Inglés', _ingles,
-                (v) => setState(() => _ingles = v)),
+            _buildChip(
+                'Español', _espanol, (v) => setState(() => _espanol = v)),
+            _buildChip(
+                'Inglés', _ingles, (v) => setState(() => _ingles = v)),
           ],
         ),
         const SizedBox(height: 16),
@@ -383,6 +401,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Producto seleccionado
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -428,8 +447,11 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.close, color: Colors.white),
-                onPressed: () =>
-                    setState(() => _productoSeleccionado = null),
+                onPressed: () => setState(() {
+                  _productoSeleccionado = null;
+                  _combinaciones = [];
+                  _combinacionSeleccionada = null;
+                }),
               ),
             ],
           ),
@@ -454,9 +476,15 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         ),
         const SizedBox(height: 20),
 
-        _buildLabel('DESTINO'),
-        const SizedBox(height: 8),
-        if (_destinosConStock.isEmpty)
+        // Selector de combinación de destinos
+        _buildLabel('GRUPO DE DESTINOS'),
+        const SizedBox(height: 4),
+        const Text(
+          'Seleccioná el grupo al que pertenece este retiro',
+          style: TextStyle(color: AppColors.primary, fontSize: 11),
+        ),
+        const SizedBox(height: 12),
+        if (_combinaciones.isEmpty)
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -465,55 +493,76 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
               border: Border.all(color: Colors.red),
             ),
             child: const Text(
-              'Este producto no tiene stock registrado por destino. Realiza una recepción primero.',
-              style: TextStyle(
-                  color: Colors.red, fontWeight: FontWeight.w600),
+              'Este producto no tiene recepciones registradas.',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
             ),
           )
         else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _destinosConStock.map((destino) {
-              final id = destino['id'] as String;
-              final nombre = destino['nombre'] as String;
-              final stock = destino['stock'] as int;
-              final seleccionado = _destinoSeleccionadoId == id;
+          Column(
+            children: _combinaciones.map((combinacion) {
+              final ids =
+                  List<String>.from(combinacion['destinosIds'] as List);
+              final clave = combinacion['clave'] as String;
+              final cantidad = combinacion['cantidad'] as int;
+              final seleccionado =
+                  _combinacionSeleccionada?['clave'] == clave;
+
+              // Stock disponible del primer destino de la combinación
+              final stockPorDestino = Map<String, dynamic>.from(
+                  data['stockPorDestino'] ?? {});
+              final stockDisponible =
+                  (stockPorDestino[ids.first] as num?)?.toInt() ?? 0;
+
               return GestureDetector(
-                onTap: () => setState(() {
-                  _destinoSeleccionado = nombre;
-                  _destinoSeleccionadoId = id;
-                }),
+                onTap: () =>
+                    setState(() => _combinacionSeleccionada = combinacion),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color:
-                        seleccionado ? AppColors.primary : Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.primary),
+                    color: seleccionado ? AppColors.primary : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: seleccionado
+                          ? AppColors.primary
+                          : AppColors.primary.withValues(alpha: 0.3),
+                      width: seleccionado ? 2 : 1,
+                    ),
                   ),
-                  child: Column(
+                  child: Row(
                     children: [
-                      Text(
-                        nombre,
-                        style: TextStyle(
-                          color: seleccionado
-                              ? Colors.white
-                              : AppColors.primary,
-                          fontWeight: FontWeight.w600,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _nombresCombinacion(ids),
+                              style: TextStyle(
+                                color: seleccionado
+                                    ? Colors.white
+                                    : AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Recibidas: $cantidad · Disponibles: $stockDisponible',
+                              style: TextStyle(
+                                color: seleccionado
+                                    ? Colors.white70
+                                    : Colors.grey[600],
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Text(
-                        'Stock: $stock',
-                        style: TextStyle(
-                          color: seleccionado
-                              ? Colors.white70
-                              : AppColors.primary.withValues(alpha: 0.6),
-                          fontSize: 11,
-                        ),
-                      ),
+                      if (seleccionado)
+                        const Icon(Icons.check_circle,
+                            color: Colors.white, size: 20),
                     ],
                   ),
                 ),
