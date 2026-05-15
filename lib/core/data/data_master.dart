@@ -15,7 +15,7 @@ class DataMaster {
   // INICIALIZACIÓN
   // ─────────────────────────────────────────
 
-  Future<void> init() async {
+    Future<void> init() async {
     _db ??= await _initDb();
   }
 
@@ -37,8 +37,9 @@ class DataMaster {
               'ALTER TABLE productos ADD COLUMN eliminado INTEGER NOT NULL DEFAULT 0');
         }
         if (oldVersion < 3) {
+          // CORREGIDO: Comillas limpias para el valor por defecto sin escapar
           await db.execute(
-              'ALTER TABLE retiros ADD COLUMN codigoRecepcion TEXT NOT NULL DEFAULT \'\'');
+              "ALTER TABLE retiros ADD COLUMN codigoRecepcion TEXT NOT NULL DEFAULT ''");
         }
       },
     );
@@ -60,8 +61,9 @@ class DataMaster {
       )
     ''');
 
+    // CORREGIDO: Esta tabla es la de 'destinos', no 'recepciones'
     await db.execute('''
-      CREATE TABLE recepciones (
+      CREATE TABLE destinos (
         id TEXT PRIMARY KEY,
         nombre TEXT NOT NULL,
         editable INTEGER NOT NULL DEFAULT 1,
@@ -70,6 +72,8 @@ class DataMaster {
       )
     ''');
 
+    // CORREGIDO: Añadida la columna 'codigoRecepcion' aquí también 
+    // para que las instalaciones nuevas de raíz ya nazcan con ella en versión 3
     await db.execute('''
       CREATE TABLE retiros (
         id TEXT PRIMARY KEY,
@@ -90,10 +94,12 @@ class DataMaster {
         estado TEXT NOT NULL DEFAULT 'cerrado',
         fecha TEXT NOT NULL,
         fechaCierre TEXT,
+        codigoRecepcion TEXT NOT NULL DEFAULT '',
         sincronizado INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
+    // Esta se queda como la VERDADERA tabla de recepciones (ingresos)
     await db.execute('''
       CREATE TABLE recepciones (
         id TEXT PRIMARY KEY,
@@ -138,6 +144,7 @@ class DataMaster {
       )
     ''');
   }
+
 
   // ─────────────────────────────────────────
   // INICIALIZAR APP — descargar datos frescos
