@@ -49759,7 +49759,7 @@ lU(a,b){return this.aeV(a,b)},
 aeV(a,b){var s=0,r=B.q(t.H)
 var $async$lU=B.r(function(c,d){if(c===1)return B.n(d,r)
 for(;;)switch(s){case 0:s=2
-return B.h(a.pS("      CREATE TABLE productos (\n        id TEXT PRIMARY KEY,\n        nombre TEXT NOT NULL,\n        tipo TEXT NOT NULL,\n        idioma TEXT NOT NULL,\n        stockActual INTEGER NOT NULL DEFAULT 0,\n        stockPorDestino TEXT NOT NULL DEFAULT '{}',\n        destinos TEXT NOT NULL DEFAULT '[]',\n        creadoEn TEXT,\n        codigoRecepcion TEXT NOT NULL DEFAULT '',\n        sincronizado INTEGER NOT NULL DEFAULT 0\n      )\n    "),$async$lU)
+return B.h(a.pS("      CREATE TABLE productos (\n        id TEXT PRIMARY KEY,\n        nombre TEXT NOT NULL,\n        tipo TEXT NOT NULL,\n        idioma TEXT NOT NULL,\n        stockActual INTEGER NOT NULL DEFAULT 0,\n        stockPorDestino TEXT NOT NULL DEFAULT '{}',\n        destinos TEXT NOT NULL DEFAULT '[]',\n        creadoEn TEXT,\n        sincronizado INTEGER NOT NULL DEFAULT 0,\n        eliminado INTEGER NOT NULL DEFAULT 0\n      )\n    "),$async$lU)
 case 2:s=3
 return B.h(a.pS("      CREATE TABLE destinos (\n        id TEXT PRIMARY KEY,\n        nombre TEXT NOT NULL,\n        editable INTEGER NOT NULL DEFAULT 1,\n        creadoEn TEXT,\n        sincronizado INTEGER NOT NULL DEFAULT 1\n      )\n    "),$async$lU)
 case 3:s=4
