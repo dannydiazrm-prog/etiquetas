@@ -653,7 +653,7 @@ class DataMaster {
         int restante = cantidadEntregada;
         for (final recepcionId in recepcionIds) {
           if (restante <= 0) break;
-          final recRows = await database.query(
+          final recRows = await txn.query(
             'recepciones',
             where: 'id = ?',
             whereArgs: [recepcionId],
@@ -755,7 +755,7 @@ class DataMaster {
 
       // Devolver cantidadDevuelta a las recepciones del lote
       if (cantidadDevuelta > 0 && codigoRecepcion.isNotEmpty) {
-        final receps = await database.query(
+        final receps = await txn.query(
           'recepciones',
           where: "productoId = ? AND codigo LIKE ?",
           whereArgs: [productoId, '$codigoRecepcion%'],
@@ -816,7 +816,7 @@ class DataMaster {
       int restante = cantidad;
       for (final recepcionId in recepcionIds) {
         if (restante <= 0) break;
-        final recRows = await database.query(
+        final recRows = await txn.query(
           'recepciones',
           where: 'id = ?',
           whereArgs: [recepcionId],
@@ -1361,7 +1361,7 @@ class DataMaster {
 
       for (final recepcionId in recepcionIds) {
         if (recepcionId.isEmpty) continue;
-        final recRows = await database.query(
+        final recRows = await txn.query(
           'recepciones',
           where: 'id = ?',
           whereArgs: [recepcionId],
@@ -1424,7 +1424,7 @@ class DataMaster {
 
       for (final recepcionId in recepcionIds) {
         if (recepcionId.isEmpty) continue;
-        final recRows = await database.query(
+        final recRows = await txn.query(
           'recepciones',
           where: 'id = ?',
           whereArgs: [recepcionId],
@@ -1499,7 +1499,7 @@ class DataMaster {
       int restante = cantidad;
       for (final recepcionId in recepcionIds) {
         if (restante <= 0) break;
-        final recRows = await database.query(
+        final recRows = await txn.query(
           'recepciones',
           where: 'id = ?',
           whereArgs: [recepcionId],
