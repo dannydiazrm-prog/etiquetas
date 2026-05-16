@@ -9273,7 +9273,7 @@ _.x=i
 _.y=j},
 a7s:function a7s(){},
 a7t:function a7t(a){this.a=a},
-a7z:function a7z(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p){var _=this
+a7z:function a7z(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o){var _=this
 _.a=a
 _.b=b
 _.c=c
@@ -9288,18 +9288,16 @@ _.z=k
 _.Q=l
 _.as=m
 _.at=n
-_.ax=o
-_.ay=p},
+_.ax=o},
 a7u:function a7u(){},
-a7i:function a7i(a,b,c,d,e,f,g){var _=this
+a7i:function a7i(a,b,c,d,e,f){var _=this
 _.a=a
 _.b=b
 _.c=c
 _.d=d
 _.e=e
-_.f=f
-_.r=g},
-a7w:function a7w(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p){var _=this
+_.f=f},
+a7w:function a7w(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o){var _=this
 _.a=a
 _.b=b
 _.c=c
@@ -9314,8 +9312,7 @@ _.z=k
 _.Q=l
 _.as=m
 _.at=n
-_.ax=o
-_.ay=p},
+_.ax=o},
 a7q:function a7q(){},
 a7v:function a7v(){},
 a7o:function a7o(a){this.a=a},
@@ -9323,20 +9320,18 @@ a7p:function a7p(a){this.a=a},
 a7k:function a7k(a,b,c){this.a=a
 this.b=b
 this.c=c},
-a7l:function a7l(a,b,c,d,e){var _=this
+a7l:function a7l(a,b,c,d){var _=this
+_.a=a
+_.b=b
+_.c=c
+_.d=d},
+a7j:function a7j(a,b,c,d,e){var _=this
 _.a=a
 _.b=b
 _.c=c
 _.d=d
 _.e=e},
-a7j:function a7j(a,b,c,d,e,f){var _=this
-_.a=a
-_.b=b
-_.c=c
-_.d=d
-_.e=e
-_.f=f},
-a7x:function a7x(a,b,c,d,e,f,g,h,i,j){var _=this
+a7x:function a7x(a,b,c,d,e,f,g,h,i){var _=this
 _.a=a
 _.b=b
 _.c=c
@@ -9345,8 +9340,7 @@ _.e=e
 _.f=f
 _.r=g
 _.w=h
-_.x=i
-_.y=j},
+_.x=i},
 a7m:function a7m(){},
 a7n:function a7n(a){this.a=a},
 aJu:function aJu(){},
@@ -50120,7 +50114,7 @@ l=m==null?null:A.o.aZ(m)
 if(a>(l==null?0:l)){q=!1
 s=1
 break}s=5
-return B.f(j.mS(new B.a7z("local_"+Date.now(),a1,a2,a4,g,d,a0,e,f,b,a,a>b,new B.bC(Date.now(),0,!1).im(),c,a3,j)),$async$qz)
+return B.f(j.mS(new B.a7z("local_"+Date.now(),a1,a2,a4,g,d,a0,e,f,b,a,a>b,new B.bC(Date.now(),0,!1).im(),c,a3)),$async$qz)
 case 5:p=7
 s=10
 return B.f(n.i_(null,a1),$async$qz)
@@ -50181,7 +50175,7 @@ break}o=k.ga2(l)
 n=A.o.aZ(B.e7(o.h(0,"cantidadEntregada")))
 k=o.h(0,"codigoRecepcion")
 s=5
-return B.f(m.mS(new B.a7i(a,n-a,c,e,J.ba(k==null?"":k),m,d)),$async$nJ)
+return B.f(m.mS(new B.a7i(a,n-a,c,e,J.ba(k==null?"":k),d)),$async$nJ)
 case 5:s=6
 return B.f(p.i_(null,d),$async$nJ)
 case 6:case 1:return B.o(q,r)}})
@@ -50199,7 +50193,7 @@ if(i==null){s=1
 break}o=A.o.aZ(B.e7(i.h(0,"stockActual")))
 n="local_"+Date.now()
 s=5
-return B.f(j.mS(new B.a7w(a,g,j,a0,n,h,e,f,a1,c,d,o,null,null,null,new B.bC(Date.now(),0,!1).im())),$async$mO)
+return B.f(j.mS(new B.a7w(a,g,a0,n,h,e,f,a1,c,d,o,null,null,null,new B.bC(Date.now(),0,!1).im())),$async$mO)
 case 5:s=6
 return B.f(p.i_(null,e),$async$mO)
 case 6:s=7
@@ -50703,7 +50697,7 @@ s=1
 break}case 6:e=B.cb(o.h(0,"cantidad"))
 h=e==null?null:A.o.aZ(e)
 s=8
-return B.f(g.mS(new B.a7l(a,i,g,l,h==null?0:h)),$async$o3)
+return B.f(g.mS(new B.a7l(a,i,l,h==null?0:h)),$async$o3)
 case 8:s=9
 return B.f(p.i_(null,n),$async$o3)
 case 9:q=!0
@@ -50737,7 +50731,7 @@ j=k.length!==0?B.b(k.split(","),g):B.b([],g)
 if(n==null){q=!1
 s=1
 break}s=5
-return B.f(i.mS(new B.a7j(b,a,j,i,l,b-m)),$async$pR)
+return B.f(i.mS(new B.a7j(b,a,j,l,b-m)),$async$pR)
 case 5:s=6
 return B.f(p.i_(null,n),$async$pR)
 case 6:q=!0
@@ -50776,7 +50770,7 @@ s=8
 break
 case 9:case 6:j="local_"+Date.now()
 s=10
-return B.f(g.mS(new B.a7x(a,k,g,j,c,f,d,m,p,b)),$async$ky)
+return B.f(g.mS(new B.a7x(a,k,j,c,f,d,m,p,b)),$async$ky)
 case 10:s=11
 return B.f(q.i_(null,c),$async$ky)
 case 11:s=12
@@ -50928,17 +50922,17 @@ case 2:h=q.ax
 g=h.length
 s=g!==0?3:4
 break
-case 3:f=q.ay,n=0
+case 3:n=0
 case 5:if(!(n<h.length)){s=7
 break}m=h[n]
 if(i<=0){s=7
 break}s=8
-return B.f(f.fP("recepciones","id = ?",[m]),$async$$1)
+return B.f(a.fP("recepciones","id = ?",[m]),$async$$1)
 case 8:l=a0
-e=J.ap(l)
-if(e.ga5(l)){s=6
-break}e=B.cb(J.cf(e.ga2(l),"cantidadActual"))
-k=e==null?null:A.o.aZ(e)
+f=J.ap(l)
+if(f.ga5(l)){s=6
+break}f=B.cb(J.cf(f.ga2(l),"cantidadActual"))
+k=f==null?null:A.o.aZ(f)
 if(k==null)k=0
 j=i>k?k:i
 s=9
@@ -50968,7 +50962,7 @@ case 2:s=k>0&&q.e.length!==0?3:4
 break
 case 3:f=J
 s=5
-return B.f(q.f.yG("recepciones","fecha ASC","productoId = ? AND codigo LIKE ?",[q.r,q.e+"%"]),$async$$1)
+return B.f(a.yG("recepciones","fecha ASC","productoId = ? AND codigo LIKE ?",[q.f,q.e+"%"]),$async$$1)
 case 5:j=f.aU(c)
 case 6:if(!j.t()){s=7
 break}i=j.gN()
@@ -50991,31 +50985,31 @@ return B.p($async$$1,r)},
 $S:30}
 B.a7w.prototype={
 $1(a){return this.a5k(a)},
-a5k(a0){var s=0,r=B.q(t.P),q=this,p,o,n,m,l,k,j,i,h,g,f,e,d,c,b,a
-var $async$$1=B.r(function(a1,a2){if(a1===1)return B.n(a2,r)
-for(;;)switch(s){case 0:a=q.a
-p=q.b,o=p.length,n=t.N,m=t.X,l=q.d,k=l==="suma",j=q.c,i=a,h=0
-case 2:if(!(h<p.length)){s=4
-break}g=p[h]
-if(i<=0){s=4
+a5k(a){var s=0,r=B.q(t.P),q=this,p,o,n,m,l,k,j,i,h,g,f,e,d,c,b
+var $async$$1=B.r(function(a0,a1){if(a0===1)return B.n(a1,r)
+for(;;)switch(s){case 0:b=q.a
+p=q.b,o=p.length,n=t.N,m=t.X,l=q.c,k=l==="suma",j=b,i=0
+case 2:if(!(i<p.length)){s=4
+break}h=p[i]
+if(j<=0){s=4
 break}s=5
-return B.f(j.fP("recepciones","id = ?",[g]),$async$$1)
-case 5:f=a2
-e=J.ap(f)
-if(e.ga5(f)){s=3
-break}e=B.cb(J.cf(e.ga2(f),"cantidadActual"))
-d=e==null?null:A.o.aZ(e)
-if(d==null)d=0
-if(k){c=d+i
-i=0}else{b=i>d?d:i
-c=d-b
-i-=b}s=6
-return B.f(a0.eJ("recepciones",B.a2(["cantidadActual",c,"sincronizado",0],n,m),"id = ?",[g]),$async$$1)
-case 6:case 3:p.length===o||(0,B.y)(p),++h
+return B.f(a.fP("recepciones","id = ?",[h]),$async$$1)
+case 5:g=a1
+f=J.ap(g)
+if(f.ga5(g)){s=3
+break}f=B.cb(J.cf(f.ga2(g),"cantidadActual"))
+e=f==null?null:A.o.aZ(f)
+if(e==null)e=0
+if(k){d=e+j
+j=0}else{c=j>e?e:j
+d=e-c
+j-=c}s=6
+return B.f(a.eJ("recepciones",B.a2(["cantidadActual",d,"sincronizado",0],n,m),"id = ?",[h]),$async$$1)
+case 6:case 3:p.length===o||(0,B.y)(p),++i
 s=2
 break
 case 4:s=7
-return B.f(a0.ec(0,"ajustes",B.a2(["id",q.e,"tipo",q.f,"tipoAjuste",l,"productoId",q.r,"productoNombre",q.w,"tipoProducto",q.x,"idioma",q.y,"cantidad",a,"motivo",q.z,"stockAnterior",q.Q,"stockNuevo",0,"recepcionId",A.l.aL(p,","),"lote",q.as,"companero",q.at,"retiroId",q.ax,"fecha",q.ay,"sincronizado",0],n,m)),$async$$1)
+return B.f(a.ec(0,"ajustes",B.a2(["id",q.d,"tipo",q.e,"tipoAjuste",l,"productoId",q.f,"productoNombre",q.r,"tipoProducto",q.w,"idioma",q.x,"cantidad",b,"motivo",q.y,"stockAnterior",q.z,"stockNuevo",0,"recepcionId",A.l.aL(p,","),"lote",q.Q,"companero",q.as,"retiroId",q.at,"fecha",q.ax,"sincronizado",0],n,m)),$async$$1)
 case 7:return B.o(null,r)}})
 return B.p($async$$1,r)},
 $S:30}
@@ -51050,25 +51044,25 @@ return B.p($async$$1,r)},
 $S:30}
 B.a7l.prototype={
 $1(a){return this.a5h(a)},
-a5h(a){var s=0,r=B.q(t.P),q=this,p,o,n,m,l,k,j,i,h,g,f,e
+a5h(a){var s=0,r=B.q(t.P),q=this,p,o,n,m,l,k,j,i,h,g,f
 var $async$$1=B.r(function(b,c){if(b===1)return B.n(c,r)
 for(;;)switch(s){case 0:s=2
 return B.f(a.pH("ajustes","id = ?",[q.a]),$async$$1)
-case 2:p=q.b,o=p.length,n=t.N,m=t.X,l=q.e,k=q.d==="suma",j=q.c,i=0
-case 3:if(!(i<p.length)){s=5
-break}h=p[i]
-if(h.length===0){s=4
+case 2:p=q.b,o=p.length,n=t.N,m=t.X,l=q.d,k=q.c==="suma",j=0
+case 3:if(!(j<p.length)){s=5
+break}i=p[j]
+if(i.length===0){s=4
 break}s=6
-return B.f(j.fP("recepciones","id = ?",[h]),$async$$1)
-case 6:g=c
-f=J.ap(g)
-if(f.ga5(g)){s=4
-break}f=B.cb(J.cf(f.ga2(g),"cantidadActual"))
-e=f==null?null:A.o.aZ(f)
-if(e==null)e=0
+return B.f(a.fP("recepciones","id = ?",[i]),$async$$1)
+case 6:h=c
+g=J.ap(h)
+if(g.ga5(h)){s=4
+break}g=B.cb(J.cf(g.ga2(h),"cantidadActual"))
+f=g==null?null:A.o.aZ(g)
+if(f==null)f=0
 s=7
-return B.f(a.eJ("recepciones",B.a2(["cantidadActual",A.o.aZ(A.u.bw(k?e-l:e+l,0,17976931348623157e292)),"sincronizado",0],n,m),"id = ?",[h]),$async$$1)
-case 7:case 4:p.length===o||(0,B.y)(p),++i
+return B.f(a.eJ("recepciones",B.a2(["cantidadActual",A.o.aZ(A.u.bw(k?f-l:f+l,0,17976931348623157e292)),"sincronizado",0],n,m),"id = ?",[i]),$async$$1)
+case 7:case 4:p.length===o||(0,B.y)(p),++j
 s=3
 break
 case 5:return B.o(null,r)}})
@@ -51076,27 +51070,27 @@ return B.p($async$$1,r)},
 $S:30}
 B.a7j.prototype={
 $1(a){return this.a5f(a)},
-a5f(a){var s=0,r=B.q(t.P),q=this,p,o,n,m,l,k,j,i,h,g,f,e
+a5f(a){var s=0,r=B.q(t.P),q=this,p,o,n,m,l,k,j,i,h,g,f
 var $async$$1=B.r(function(b,c){if(b===1)return B.n(c,r)
-for(;;)switch(s){case 0:f=t.N
-e=t.X
+for(;;)switch(s){case 0:g=t.N
+f=t.X
 s=2
-return B.f(a.eJ("ajustes",B.a2(["cantidad",q.a],f,e),"id = ?",[q.b]),$async$$1)
-case 2:p=q.c,o=p.length,n=q.f,m=q.e==="suma",l=q.d,k=0
-case 3:if(!(k<p.length)){s=5
-break}j=p[k]
-if(j.length===0){s=4
+return B.f(a.eJ("ajustes",B.a2(["cantidad",q.a],g,f),"id = ?",[q.b]),$async$$1)
+case 2:p=q.c,o=p.length,n=q.e,m=q.d==="suma",l=0
+case 3:if(!(l<p.length)){s=5
+break}k=p[l]
+if(k.length===0){s=4
 break}s=6
-return B.f(l.fP("recepciones","id = ?",[j]),$async$$1)
-case 6:i=c
-h=J.ap(i)
-if(h.ga5(i)){s=4
-break}h=B.cb(J.cf(h.ga2(i),"cantidadActual"))
-g=h==null?null:A.o.aZ(h)
-if(g==null)g=0
+return B.f(a.fP("recepciones","id = ?",[k]),$async$$1)
+case 6:j=c
+i=J.ap(j)
+if(i.ga5(j)){s=4
+break}i=B.cb(J.cf(i.ga2(j),"cantidadActual"))
+h=i==null?null:A.o.aZ(i)
+if(h==null)h=0
 s=7
-return B.f(a.eJ("recepciones",B.a2(["cantidadActual",A.o.aZ(A.u.bw(m?g+n:g-n,0,17976931348623157e292)),"sincronizado",0],f,e),"id = ?",[j]),$async$$1)
-case 7:case 4:p.length===o||(0,B.y)(p),++k
+return B.f(a.eJ("recepciones",B.a2(["cantidadActual",A.o.aZ(A.u.bw(m?h+n:h-n,0,17976931348623157e292)),"sincronizado",0],g,f),"id = ?",[k]),$async$$1)
+case 7:case 4:p.length===o||(0,B.y)(p),++l
 s=3
 break
 case 5:return B.o(null,r)}})
@@ -51107,37 +51101,37 @@ $1(a){return this.a5l(a)},
 a5l(a){var s=0,r=B.q(t.P),q=this,p,o,n,m,l,k,j,i,h,g,f,e,d,c,b
 var $async$$1=B.r(function(a0,a1){if(a0===1)return B.n(a1,r)
 for(;;)switch(s){case 0:b=q.a
-p=q.b,o=p.length,n=t.N,m=t.X,l=q.c,k=b,j=0
-case 2:if(!(j<p.length)){s=4
-break}i=p[j]
-if(k<=0){s=4
+p=q.b,o=p.length,n=t.N,m=t.X,l=b,k=0
+case 2:if(!(k<p.length)){s=4
+break}j=p[k]
+if(l<=0){s=4
 break}s=5
-return B.f(l.fP("recepciones","id = ?",[i]),$async$$1)
-case 5:h=a1
-g=J.ap(h)
-if(g.ga5(h)){s=3
-break}g=B.cb(J.cf(g.ga2(h),"cantidadActual"))
-f=g==null?null:A.o.aZ(g)
-if(f==null)f=0
-e=k>f?f:k
+return B.f(a.fP("recepciones","id = ?",[j]),$async$$1)
+case 5:i=a1
+h=J.ap(i)
+if(h.ga5(i)){s=3
+break}h=B.cb(J.cf(h.ga2(i),"cantidadActual"))
+g=h==null?null:A.o.aZ(h)
+if(g==null)g=0
+f=l>g?g:l
 s=6
-return B.f(a.eJ("recepciones",B.a2(["cantidadActual",f-e,"sincronizado",0],n,m),"id = ?",[i]),$async$$1)
-case 6:k-=e
-case 3:p.length===o||(0,B.y)(p),++j
+return B.f(a.eJ("recepciones",B.a2(["cantidadActual",g-f,"sincronizado",0],n,m),"id = ?",[j]),$async$$1)
+case 6:l-=f
+case 3:p.length===o||(0,B.y)(p),++k
 s=2
 break
-case 4:o=q.f
-l=o.h(0,"nombre")
-g=o.h(0,"tipo")
+case 4:o=q.e
+h=o.h(0,"nombre")
+e=o.h(0,"tipo")
 o=o.h(0,"idioma")
 p=A.l.aL(p,",")
-d=q.w
+d=q.r
 c=d.h(0,"lote")
 if(c==null)c=""
 d=d.h(0,"companero")
 if(d==null)d=""
 s=7
-return B.f(a.ec(0,"ajustes",B.a2(["id",q.d,"tipo","hoja_ajuste","tipoAjuste","resta","productoId",q.e,"productoNombre",l,"tipoProducto",g,"idioma",o,"retiroId",q.r,"recepcionId",p,"lote",c,"companero",d,"cantidad",b,"stockAnterior",q.x,"stockNuevo",0,"motivo",q.y,"fecha",new B.bC(Date.now(),0,!1).im(),"sincronizado",0],n,m)),$async$$1)
+return B.f(a.ec(0,"ajustes",B.a2(["id",q.c,"tipo","hoja_ajuste","tipoAjuste","resta","productoId",q.d,"productoNombre",h,"tipoProducto",e,"idioma",o,"retiroId",q.f,"recepcionId",p,"lote",c,"companero",d,"cantidad",b,"stockAnterior",q.w,"stockNuevo",0,"motivo",q.x,"fecha",new B.bC(Date.now(),0,!1).im(),"sincronizado",0],n,m)),$async$$1)
 case 7:return B.o(null,r)}})
 return B.p($async$$1,r)},
 $S:30}
