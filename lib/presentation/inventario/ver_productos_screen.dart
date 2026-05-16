@@ -21,6 +21,7 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
   bool _espanol = false;
   Set<String> _prefijosSeleccionados = {};
   List<String> _prefijosUsados = [];
+  bool _cargandoPrefijos = true; // Flag para distinguir "cargando" de "vacío"
   List<Map<String, dynamic>> _resultados = [];
   bool _buscando = false;
   bool _buscado = false;
@@ -39,11 +40,16 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
     super.dispose();
   }
 
-    Future<void> _cargarPrefijos() async {    
+  Future<void> _cargarPrefijos() async {
+    setState(() => _cargandoPrefijos = true);
     final usados = await DataMaster().obtenerPrefijosUsados();
-    if (mounted) setState(() => _prefijosUsados = usados);
+    if (mounted) {
+      setState(() {
+        _prefijosUsados = usados;
+        _cargandoPrefijos = false;
+      });
+    }
   }
-
 
   Future<Map<String, Map<String, int>>> _obtenerStockPorCodigo(
     List<String> prefijos,
@@ -51,13 +57,22 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
     return DataMaster().obtenerStockRealPorPrefijo(prefijos);
   }
 
-    String _docId(Map<String, dynamic> d) => d['id']?.toString() ?? '';
+  String _docId(Map<String, dynamic> d) => d['id']?.toString() ?? '';
 
   Future<void> _buscar() async {
     setState(() {
       _buscando = true;
       _buscado = false;
     });
+
+    // Recargar prefijos en cada búsqueda para que estén actualizados
+    final usados = await DataMaster().obtenerPrefijosUsados();
+    if (mounted) {
+      setState(() {
+        _prefijosUsados = usados;
+        _cargandoPrefijos = false;
+      });
+    }
 
     List<Map<String, dynamic>> docs = await DataMaster().obtenerProductos();
 
@@ -135,7 +150,6 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
     if (pinIngresado == null) return;
 
     final pinGuardado = await DataMaster().obtenerPin();
-
 
     if (pinIngresado != pinGuardado) {
       if (mounted) {
@@ -430,24 +444,6 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        TextField(
-          controller: _nombreController,
-          decoration: InputDecoration(
-            hintText: 'Buscar por nombre',
-            prefixIcon: const Icon(Icons.search, color: AppColors.primary),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -513,31 +509,41 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: _prefijosUsados.isEmpty
+                child: _cargandoPrefijos
                     ? const Center(
                         child: CircularProgressIndicator(
                           color: AppColors.primary,
                         ),
                       )
-                    : Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _prefijosUsados.map((p) {
-                          final seleccionado =
-                              _prefijosSeleccionados.contains(p);
-                          return _buildChip(
-                            'Código $p',
-                            seleccionado,
-                            (v) => setState(() {
-                              if (v) {
-                                _prefijosSeleccionados.add(p);
-                              } else {
-                                _prefijosSeleccionados.remove(p);
-                              }
-                            }),
-                          );
-                        }).toList(),
-                      ),
+                    : _prefijosUsados.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No hay códigos registrados',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          )
+                        : Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _prefijosUsados.map((p) {
+                              final seleccionado =
+                                  _prefijosSeleccionados.contains(p);
+                              return _buildChip(
+                                'Código $p',
+                                seleccionado,
+                                (v) => setState(() {
+                                  if (v) {
+                                    _prefijosSeleccionados.add(p);
+                                  } else {
+                                    _prefijosSeleccionados.remove(p);
+                                  }
+                                }),
+                              );
+                            }).toList(),
+                          ),
               ),
             ],
           ),
@@ -593,7 +599,7 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-                    color: bajominimo
+          color: bajominimo
               ? Colors.orange
               : AppColors.primary.withValues(alpha: 0.3),
           width: bajominimo ? 2 : 1,
@@ -649,7 +655,7 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: (color ?? AppColors.primary).withOpacity(0.1),
+        color: (color ?? AppColors.primary).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(

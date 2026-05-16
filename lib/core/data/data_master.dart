@@ -283,7 +283,6 @@ class DataMaster {
       dynamic txn, String productoId) async {
     final database = await db;
 
-    // Obtener todas las recepciones del producto
     final receps = await database.query(
       'recepciones',
       where: 'productoId = ?',
@@ -307,31 +306,17 @@ class DataMaster {
       }
     }
 
-    if (txn != null) {
-      await txn.update(
-        'productos',
-        {
-          'stockActual': stockTotal,
-          'stockPorDestino': jsonEncode(stockPorDestino),
-          'destinos': jsonEncode(destinosActivos.toList()),
-          'sincronizado': 0,
-        },
-        where: 'id = ?',
-        whereArgs: [productoId],
-      );
-    } else {
-      await database.update(
-        'productos',
-        {
-          'stockActual': stockTotal,
-          'stockPorDestino': jsonEncode(stockPorDestino),
-          'destinos': jsonEncode(destinosActivos.toList()),
-          'sincronizado': 0,
-        },
-        where: 'id = ?',
-        whereArgs: [productoId],
-      );
-    }
+    await database.update(
+      'productos',
+      {
+        'stockActual': stockTotal,
+        'stockPorDestino': jsonEncode(stockPorDestino),
+        'destinos': jsonEncode(destinosActivos.toList()),
+        'sincronizado': 0,
+      },
+      where: 'id = ?',
+      whereArgs: [productoId],
+    );
   }
 
   // ─────────────────────────────────────────
@@ -687,8 +672,10 @@ class DataMaster {
       }
     });
 
-    // Recalcular stock del producto
-    await _recalcularStockProducto(null, productoId);
+   // Recalcular stock del producto
+    try {
+      await _recalcularStockProducto(null, productoId);
+    } catch (_) {}
 
     return true;
   }

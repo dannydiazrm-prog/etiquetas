@@ -23,6 +23,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
   bool _espanol = false;
   Set<String> _prefijosSeleccionados = {};
   List<String> _prefijosUsados = [];
+  bool _cargandoPrefijos = true;
   bool _generando = false;
 
   @override
@@ -31,11 +32,16 @@ class _ReportesScreenState extends State<ReportesScreen> {
     _cargarPrefijos();
   }
 
-    Future<void> _cargarPrefijos() async {
+  Future<void> _cargarPrefijos() async {
+    setState(() => _cargandoPrefijos = true);
     final usados = await DataMaster().obtenerPrefijosUsados();
-    if (mounted) setState(() => _prefijosUsados = usados);
+    if (mounted) {
+      setState(() {
+        _prefijosUsados = usados;
+        _cargandoPrefijos = false;
+      });
+    }
   }
-
 
   Future<Map<String, Map<String, int>>> _obtenerStockPorCodigo(
     List<String> prefijos,
@@ -49,21 +55,18 @@ class _ReportesScreenState extends State<ReportesScreen> {
     try {
       List<Map<String, dynamic>> docs = await DataMaster().obtenerProductos();
 
-      // Filtro tipo
       if (_etiquetas && !_prospectos) {
         docs = docs.where((d) => d['tipo'] == 'Etiqueta').toList();
       } else if (_prospectos && !_etiquetas) {
         docs = docs.where((d) => d['tipo'] == 'Prospecto').toList();
       }
 
-      // Filtro idioma
       if (_espanol && !_ingles) {
         docs = docs.where((d) => d['idioma'] == 'ES').toList();
       } else if (_ingles && !_espanol) {
         docs = docs.where((d) => d['idioma'] == 'EN').toList();
       }
 
-      // Filtro stock
       if (_conStock && !_sinStock) {
         docs = docs.where((d) {
           return ((d['stockActual'] as num?)?.toInt() ?? 0) > 0;
@@ -81,7 +84,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
         stockPorCodigo = await _obtenerStockPorCodigo(prefijosActivos);
         final idsConCodigo = stockPorCodigo.keys.toSet();
         docs = docs.where((d) {
-                    final id = d['id']?.toString() ?? '';
+          final id = d['id']?.toString() ?? '';
           return idsConCodigo.contains(id);
         }).toList();
       }
@@ -186,9 +189,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
                         .toList(),
                   ),
                   ...docs.map((data) {
-                                        final docId = data['id']?.toString() ?? '';
+                    final docId = data['id']?.toString() ?? '';
                     int stockMostrar;
-                  if (prefijosActivos.isNotEmpty &&
+                    if (prefijosActivos.isNotEmpty &&
                         stockPorCodigo.containsKey(docId)) {
                       stockMostrar = prefijosActivos.fold(
                           0,
@@ -217,7 +220,12 @@ class _ReportesScreenState extends State<ReportesScreen> {
                               padding: const pw.EdgeInsets.all(8),
                               child: pw.Text(
                                 v,
-                                style: const pw.TextStyle(fontSize: 10),
+                                style: pw.TextStyle(
+                                  fontSize: 10,
+                                  color: bajominimo
+                                      ? PdfColor.fromHex('#E65100')
+                                      : PdfColors.black,
+                                ),
                               ),
                             ),
                           )
@@ -348,31 +356,45 @@ class _ReportesScreenState extends State<ReportesScreen> {
                             Padding(
                               padding:
                                   const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                              child: _prefijosUsados.isEmpty
+                              child: _cargandoPrefijos
                                   ? const Center(
                                       child: CircularProgressIndicator(
                                         color: AppColors.primary,
                                       ),
                                     )
-                                  : Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: _prefijosUsados.map((p) {
-                                        final seleccionado =
-                                            _prefijosSeleccionados.contains(p);
-                                        return _buildChip(
-                                          'Código $p',
-                                          seleccionado,
-                                          (v) => setState(() {
-                                            if (v) {
-                                              _prefijosSeleccionados.add(p);
-                                            } else {
-                                              _prefijosSeleccionados.remove(p);
-                                            }
-                                          }),
-                                        );
-                                      }).toList(),
-                                    ),
+                                  : _prefijosUsados.isEmpty
+                                      ? const Center(
+                                          child: Text(
+                                            'No hay códigos registrados',
+                                            style: TextStyle(
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        )
+                                      : Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children:
+                                              _prefijosUsados.map((p) {
+                                            final seleccionado =
+                                                _prefijosSeleccionados
+                                                    .contains(p);
+                                            return _buildChip(
+                                              'Código $p',
+                                              seleccionado,
+                                              (v) => setState(() {
+                                                if (v) {
+                                                  _prefijosSeleccionados
+                                                      .add(p);
+                                                } else {
+                                                  _prefijosSeleccionados
+                                                      .remove(p);
+                                                }
+                                              }),
+                                            );
+                                          }).toList(),
+                                        ),
                             ),
                           ],
                         ),
