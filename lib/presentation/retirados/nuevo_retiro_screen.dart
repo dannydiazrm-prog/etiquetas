@@ -103,22 +103,13 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
   }
 
   Future<void> _seleccionarProducto(Map<String, dynamic> data) async {
+    // obtenerCombinacionesRecepcion ya filtra cantidadActual > 0
     final combinaciones = await DataMaster()
         .obtenerCombinacionesRecepcion(data['id'] as String);
 
-    // Filtrar combinaciones que tengan stock disponible en stockPorDestino
-    final stockPorDestino =
-        Map<String, dynamic>.from(data['stockPorDestino'] ?? {});
-
-    final combinacionesConStock = combinaciones.where((c) {
-      final ids = List<String>.from(c['destinosIds'] as List);
-      // La combinación tiene stock si alguno de sus destinos tiene stock
-      return ids.any((id) => ((stockPorDestino[id] as num?)?.toInt() ?? 0) > 0);
-    }).toList();
-
     setState(() {
       _productoSeleccionado = data;
-      _combinaciones = combinacionesConStock;
+      _combinaciones = combinaciones;
       _combinacionSeleccionada = null;
       _companeroController.clear();
       _loteController.clear();
@@ -176,6 +167,8 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
     final destinoId = destinosIds.first;
     final destinoNombre = _nombresCombinacion(destinosIds);
     final codigoRecepcion = _combinacionSeleccionada!['prefijo'] as String? ?? '';
+    final recepcionIds = List<String>.from(
+        _combinacionSeleccionada!['recepcionIds'] as List? ?? []);
 
     setState(() {
       _guardando = true;
@@ -196,6 +189,7 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
         destinoId: destinoId,
         cantidadEstimada: cantidadEstimada,
         cantidadEntregada: cantidadEntregada,
+		recepcionIds: recepcionIds,
         codigoRecepcion: codigoRecepcion,
       );
 
@@ -504,15 +498,13 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
               final ids =
                   List<String>.from(combinacion['destinosIds'] as List);
               final clave = combinacion['clave'] as String;
-              final cantidad = combinacion['cantidad'] as int;
               final seleccionado =
                   _combinacionSeleccionada?['clave'] == clave;
 
-              // Stock disponible del primer destino de la combinación
-              final stockPorDestino = Map<String, dynamic>.from(
-                  data['stockPorDestino'] ?? {});
+              // cantidadActual viene directo de las recepciones
               final stockDisponible =
-                  (stockPorDestino[ids.first] as num?)?.toInt() ?? 0;
+                  (combinacion['cantidadActual'] as num?)?.toInt() ?? 0;
+              final prefijo = combinacion['prefijo'] as String? ?? '';
 
               return GestureDetector(
                 onTap: () =>
@@ -550,7 +542,8 @@ class _NuevoRetiroScreenState extends State<NuevoRetiroScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Recibidas: $cantidad · Disponibles: $stockDisponible',
+                             Text(
+                              'Cód. $prefijo · Disponibles: $stockDisponible',
                               style: TextStyle(
                                 color: seleccionado
                                     ? Colors.white70

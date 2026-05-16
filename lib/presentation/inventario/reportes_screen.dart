@@ -188,11 +188,12 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   ...docs.map((data) {
                                         final docId = data['id']?.toString() ?? '';
                     int stockMostrar;
-                    if (prefijosActivos.isNotEmpty &&
+                  if (prefijosActivos.isNotEmpty &&
                         stockPorCodigo.containsKey(docId)) {
-                      stockMostrar = stockPorCodigo[docId]!
-                          .values
-                          .fold(0, (sum, v) => sum + v);
+                      stockMostrar = prefijosActivos.fold(
+                          0,
+                          (sum, p) =>
+                              sum + (stockPorCodigo[docId]![p] ?? 0));
                     } else {
                       stockMostrar =
                           (data['stockActual'] as num?)?.toInt() ?? 0;

@@ -15,7 +15,7 @@ class DataMaster {
   // INICIALIZACIÓN
   // ─────────────────────────────────────────
 
-        Future<void> init() async {
+  Future<void> init() async {
     _db ??= await _initDb();
   }
 
@@ -29,7 +29,7 @@ class DataMaster {
     final path = join(dir.path, 'galmedic.db');
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _crearTablas,
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -37,9 +37,16 @@ class DataMaster {
               'ALTER TABLE productos ADD COLUMN eliminado INTEGER NOT NULL DEFAULT 0');
         }
         if (oldVersion < 3) {
-          // CORRECCIÓN 1: Comillas limpias para evitar errores en SQLite
           await db.execute(
               "ALTER TABLE retiros ADD COLUMN codigoRecepcion TEXT NOT NULL DEFAULT ''");
+        }
+        if (oldVersion < 4) {
+          // cantidadActual es la fuente de verdad del stock de cada lote
+          await db.execute(
+              "ALTER TABLE recepciones ADD COLUMN cantidadActual INTEGER NOT NULL DEFAULT 0");
+          // Inicializar cantidadActual = cantidad para recepciones existentes
+          await db.execute(
+              "UPDATE recepciones SET cantidadActual = cantidad WHERE cantidadActual = 0");
         }
       },
     );
@@ -61,8 +68,6 @@ class DataMaster {
       )
     ''');
 
-    // CORRECCIÓN 2: Esta era la tabla que estaba duplicada en tu código original. 
-    // Como abajo ya tenías la de recepciones, a esta le correspondía llamarse 'destinos'.
     await db.execute('''
       CREATE TABLE destinos (
         id TEXT PRIMARY KEY,
@@ -98,7 +103,6 @@ class DataMaster {
       )
     ''');
 
-    // Esta se queda intacta como tu tabla de recepciones (ingresos) original
     await db.execute('''
       CREATE TABLE recepciones (
         id TEXT PRIMARY KEY,
@@ -107,6 +111,7 @@ class DataMaster {
         tipo TEXT,
         idioma TEXT,
         cantidad INTEGER NOT NULL,
+        cantidadActual INTEGER NOT NULL DEFAULT 0,
         codigo TEXT NOT NULL,
         destinoClave TEXT NOT NULL,
         destinos TEXT NOT NULL DEFAULT '[]',
@@ -115,7 +120,6 @@ class DataMaster {
       )
     ''');
 
-    // Tu tabla original de ajustes con el lote, compañero, etc. exactamente en su lugar
     await db.execute('''
       CREATE TABLE ajustes (
         id TEXT PRIMARY KEY,
@@ -132,6 +136,7 @@ class DataMaster {
         lote TEXT,
         companero TEXT,
         retiroId TEXT,
+        recepcionId TEXT,
         fecha TEXT NOT NULL,
         sincronizado INTEGER NOT NULL DEFAULT 0
       )
@@ -145,9 +150,8 @@ class DataMaster {
     ''');
   }
 
-
   // ─────────────────────────────────────────
-  // INICIALIZAR APP — descargar datos frescos
+  // INICIALIZAR APP
   // ─────────────────────────────────────────
 
   Future<void> inicializar() async {
@@ -270,6 +274,67 @@ class DataMaster {
   Future<String?> obtenerConfig(String clave) => leerConfig(clave);
 
   // ─────────────────────────────────────────
+  // HELPERS — stock calculado desde recepciones
+  // ─────────────────────────────────────────
+
+  /// Recalcula stockActual y stockPorDestino del producto
+  /// sumando cantidadActual de todas sus recepciones.
+  Future<void> _recalcularStockProducto(
+      dynamic txn, String productoId) async {
+    final database = await db;
+
+    // Obtener todas las recepciones del producto
+    final receps = await database.query(
+      'recepciones',
+      where: 'productoId = ?',
+      whereArgs: [productoId],
+    );
+
+    int stockTotal = 0;
+    final Map<String, int> stockPorDestino = {};
+    final Set<String> destinosActivos = {};
+
+    for (final r in receps) {
+      final actual = (r['cantidadActual'] as num?)?.toInt() ?? 0;
+      stockTotal += actual;
+
+      final destinos = List<String>.from(
+        jsonDecode(r['destinos'] as String? ?? '[]') as List,
+      );
+      for (final d in destinos) {
+        stockPorDestino[d] = (stockPorDestino[d] ?? 0) + actual;
+        destinosActivos.add(d);
+      }
+    }
+
+    if (txn != null) {
+      await txn.update(
+        'productos',
+        {
+          'stockActual': stockTotal,
+          'stockPorDestino': jsonEncode(stockPorDestino),
+          'destinos': jsonEncode(destinosActivos.toList()),
+          'sincronizado': 0,
+        },
+        where: 'id = ?',
+        whereArgs: [productoId],
+      );
+    } else {
+      await database.update(
+        'productos',
+        {
+          'stockActual': stockTotal,
+          'stockPorDestino': jsonEncode(stockPorDestino),
+          'destinos': jsonEncode(destinosActivos.toList()),
+          'sincronizado': 0,
+        },
+        where: 'id = ?',
+        whereArgs: [productoId],
+      );
+    }
+  }
+
+  // ─────────────────────────────────────────
   // PRODUCTOS
   // ─────────────────────────────────────────
 
@@ -386,24 +451,6 @@ class DataMaster {
     );
   }
 
-  Future<void> _actualizarStockProducto(
-    Database database,
-    String productoId,
-    Map<String, dynamic> stockPorDestino,
-    int stockTotal,
-  ) async {
-    await database.update(
-      'productos',
-      {
-        'stockActual': stockTotal,
-        'stockPorDestino': jsonEncode(stockPorDestino),
-        'sincronizado': 0,
-      },
-      where: 'id = ?',
-      whereArgs: [productoId],
-    );
-  }
-
   // ─────────────────────────────────────────
   // DESTINOS
   // ─────────────────────────────────────────
@@ -453,28 +500,8 @@ class DataMaster {
     final id = 'local_${DateTime.now().millisecondsSinceEpoch}';
     final fecha = DateTime.now().toIso8601String();
 
-    final producto = await obtenerProductoPorId(productoId);
-    if (producto == null) return;
-
-    // Stock global — suma la cantidad recibida al total
-    final nuevoStockTotal =
-        ((producto['stockActual'] as num?)?.toInt() ?? 0) + cantidad;
-
-    // Actualizar stockPorDestino sumando a cada destino habilitado
-    final stockPorDestino =
-        Map<String, dynamic>.from(producto['stockPorDestino'] ?? {});
-    for (final d in destinos) {
-      final actual = (stockPorDestino[d] as num?)?.toInt() ?? 0;
-      stockPorDestino[d] = actual + cantidad;
-    }
-
-    // Agregar destinos nuevos sin duplicar
-    final destinosActuales = List<String>.from(producto['destinos'] ?? []);
-    for (final d in destinos) {
-      if (!destinosActuales.contains(d)) destinosActuales.add(d);
-    }
-
     await database.transaction((txn) async {
+      // Insertar recepción con cantidadActual = cantidad recibida
       await txn.insert('recepciones', {
         'id': id,
         'productoId': productoId,
@@ -482,26 +509,17 @@ class DataMaster {
         'tipo': tipo,
         'idioma': idioma,
         'cantidad': cantidad,
+        'cantidadActual': cantidad,
         'codigo': codigo,
         'destinoClave': destinoClave,
         'destinos': jsonEncode(destinos),
         'fecha': fecha,
         'sincronizado': 0,
       });
-
-      await txn.update(
-        'productos',
-        {
-          'stockActual': nuevoStockTotal,
-          'stockPorDestino': jsonEncode(stockPorDestino),
-          'destinos': jsonEncode(destinosActuales),
-          'sincronizado': 0,
-        },
-        where: 'id = ?',
-        whereArgs: [productoId],
-      );
     });
 
+    // Recalcular stock del producto desde recepciones
+    await _recalcularStockProducto(null, productoId);
     await _agregarPrefijo(codigo.substring(0, 2));
   }
 
@@ -545,17 +563,18 @@ class DataMaster {
     return resultado;
   }
 
+  /// Devuelve las combinaciones únicas de destinos+prefijo de un producto
+  /// con su cantidadActual disponible para mostrar en retiro y ajuste.
   Future<List<Map<String, dynamic>>> obtenerCombinacionesRecepcion(
       String productoId) async {
     final database = await db;
     final rows = await database.query(
       'recepciones',
-      where: 'productoId = ?',
+      where: 'productoId = ? AND cantidadActual > 0',
       whereArgs: [productoId],
       orderBy: 'fecha ASC',
     );
 
-    // Agrupar por combinación de destinos Y prefijo de código
     final Map<String, Map<String, dynamic>> combinaciones = {};
 
     for (final row in rows) {
@@ -564,28 +583,32 @@ class DataMaster {
       );
       final codigo = (row['codigo'] ?? '').toString();
       final prefijo = codigo.length >= 2 ? codigo.substring(0, 2) : codigo;
+      final cantidadActual = (row['cantidadActual'] as num?)?.toInt() ?? 0;
 
-      // La clave incluye tanto los destinos como el prefijo
+      // Clave única: destinos ordenados + prefijo
       final destinosClave = (List<String>.from(destinos)..sort()).join(',');
       final clave = '$destinosClave|$prefijo';
 
       if (combinaciones.containsKey(clave)) {
-        combinaciones[clave]!['cantidad'] =
-            (combinaciones[clave]!['cantidad'] as int) +
-                ((row['cantidad'] as num?)?.toInt() ?? 0);
+        combinaciones[clave]!['cantidadActual'] =
+            (combinaciones[clave]!['cantidadActual'] as int) + cantidadActual;
+        // Guardar todos los IDs de recepciones de esta combinación
+        (combinaciones[clave]!['recepcionIds'] as List<String>)
+            .add(row['id'] as String);
       } else {
         combinaciones[clave] = {
           'destinosIds': destinos,
-          'cantidad': (row['cantidad'] as num?)?.toInt() ?? 0,
+          'cantidadActual': cantidadActual,
           'clave': clave,
           'prefijo': prefijo,
+          'recepcionIds': [row['id'] as String],
         };
       }
     }
 
     return combinaciones.values.toList();
   }
-  
+
   // ─────────────────────────────────────────
   // RETIROS
   // ─────────────────────────────────────────
@@ -602,6 +625,7 @@ class DataMaster {
     required int cantidadEstimada,
     required int cantidadEntregada,
     String codigoRecepcion = '',
+    List<String> recepcionIds = const [],
   }) async {
     final database = await db;
     final producto = await obtenerProductoPorId(productoId);
@@ -613,15 +637,6 @@ class DataMaster {
     final hayPendiente = cantidadEntregada > cantidadEstimada;
     final id = 'local_${DateTime.now().millisecondsSinceEpoch}';
     final fecha = DateTime.now().toIso8601String();
-    final nuevoStockTotal = stockDisponible - cantidadEntregada;
-
-    // Descontar del cupo del destino en stockPorDestino
-    final stockPorDestino =
-        Map<String, dynamic>.from(producto['stockPorDestino'] ?? {});
-    final stockDestinoActual =
-        (stockPorDestino[destinoId] as num?)?.toInt() ?? 0;
-    stockPorDestino[destinoId] =
-        (stockDestinoActual - cantidadEntregada).clamp(0, double.maxFinite).toInt();
 
     await database.transaction((txn) async {
       await txn.insert('retiros', {
@@ -643,21 +658,37 @@ class DataMaster {
         'estado': hayPendiente ? 'pendiente' : 'cerrado',
         'fecha': fecha,
         'fechaCierre': hayPendiente ? null : fecha,
-		'codigoRecepcion': codigoRecepcion,
+        'codigoRecepcion': codigoRecepcion,
         'sincronizado': 0,
       });
 
-      await txn.update(
-        'productos',
-        {
-          'stockActual': nuevoStockTotal,
-          'stockPorDestino': jsonEncode(stockPorDestino),
-          'sincronizado': 0,
-        },
-        where: 'id = ?',
-        whereArgs: [productoId],
-      );
+      // Descontar cantidadEntregada de las recepciones de esta combinación
+      // distribuido proporcionalmente entre los lotes
+      if (recepcionIds.isNotEmpty) {
+        int restante = cantidadEntregada;
+        for (final recepcionId in recepcionIds) {
+          if (restante <= 0) break;
+          final recRows = await database.query(
+            'recepciones',
+            where: 'id = ?',
+            whereArgs: [recepcionId],
+          );
+          if (recRows.isEmpty) continue;
+          final actual = (recRows.first['cantidadActual'] as num?)?.toInt() ?? 0;
+          final descontar = restante > actual ? actual : restante;
+          await txn.update(
+            'recepciones',
+            {'cantidadActual': actual - descontar, 'sincronizado': 0},
+            where: 'id = ?',
+            whereArgs: [recepcionId],
+          );
+          restante -= descontar;
+        }
+      }
     });
+
+    // Recalcular stock del producto
+    await _recalcularStockProducto(null, productoId);
 
     return true;
   }
@@ -707,18 +738,6 @@ class DataMaster {
     required String motivoCierre,
   }) async {
     final database = await db;
-    final producto = await obtenerProductoPorId(productoId);
-    if (producto == null) return;
-
-    final stockActual = (producto['stockActual'] as num?)?.toInt() ?? 0;
-    final nuevoStockTotal = stockActual + cantidadDevuelta;
-
-    // Devolver al cupo del destino en stockPorDestino
-    final stockPorDestino =
-        Map<String, dynamic>.from(producto['stockPorDestino'] ?? {});
-    final stockDestinoActual =
-        (stockPorDestino[destinoId] as num?)?.toInt() ?? 0;
-    stockPorDestino[destinoId] = stockDestinoActual + cantidadDevuelta;
 
     final retiroRows = await database.query(
       'retiros',
@@ -729,6 +748,7 @@ class DataMaster {
     final retiro = retiroRows.first;
     final entregada = (retiro['cantidadEntregada'] as num).toInt();
     final consumoReal = entregada - cantidadDevuelta;
+    final codigoRecepcion = (retiro['codigoRecepcion'] ?? '').toString();
 
     await database.transaction((txn) async {
       await txn.update(
@@ -746,17 +766,35 @@ class DataMaster {
         whereArgs: [retiroId],
       );
 
-      await txn.update(
-        'productos',
-        {
-          'stockActual': nuevoStockTotal,
-          'stockPorDestino': jsonEncode(stockPorDestino),
-          'sincronizado': 0,
-        },
-        where: 'id = ?',
-        whereArgs: [productoId],
-      );
+      // Devolver cantidadDevuelta a las recepciones del lote
+      if (cantidadDevuelta > 0 && codigoRecepcion.isNotEmpty) {
+        final receps = await database.query(
+          'recepciones',
+          where: "productoId = ? AND codigo LIKE ?",
+          whereArgs: [productoId, '$codigoRecepcion%'],
+          orderBy: 'fecha ASC',
+        );
+        int restante = cantidadDevuelta;
+        for (final r in receps) {
+          if (restante <= 0) break;
+          final actual = (r['cantidadActual'] as num?)?.toInt() ?? 0;
+          final original = (r['cantidad'] as num?)?.toInt() ?? 0;
+          final espacio = original - actual;
+          final devolver = restante > espacio ? espacio : restante;
+          if (devolver <= 0) continue;
+          await txn.update(
+            'recepciones',
+            {'cantidadActual': actual + devolver, 'sincronizado': 0},
+            where: 'id = ?',
+            whereArgs: [r['id']],
+          );
+          restante -= devolver;
+        }
+      }
     });
+
+    // Recalcular stock del producto
+    await _recalcularStockProducto(null, productoId);
   }
 
   // ─────────────────────────────────────────
@@ -773,6 +811,7 @@ class DataMaster {
     required int cantidad,
     required String motivo,
     required List<String> destinosIds,
+    required List<String> recepcionIds,
     String? lote,
     String? companero,
     String? retiroId,
@@ -781,34 +820,39 @@ class DataMaster {
     final producto = await obtenerProductoPorId(productoId);
     if (producto == null) return;
 
-    Map<String, int> stockPorDestino = {};
-    if (producto['stockPorDestino'] != null &&
-        producto['stockPorDestino'].toString().isNotEmpty) {
-      stockPorDestino =
-          Map<String, int>.from(producto['stockPorDestino'] as Map);
-    }
-
     final stockAnterior = (producto['stockActual'] as num).toInt();
-    int nuevoStockTotal = stockAnterior;
-
-    if (tipoAjuste == 'suma') {
-      nuevoStockTotal += cantidad;
-      for (var dId in destinosIds) {
-        stockPorDestino[dId] = (stockPorDestino[dId] ?? 0) + cantidad;
-      }
-    } else {
-      nuevoStockTotal = (stockAnterior - cantidad).clamp(0, 9999999).toInt();
-      for (var dId in destinosIds) {
-        int stockEnDestino = stockPorDestino[dId] ?? 0;
-        stockPorDestino[dId] =
-            (stockEnDestino - cantidad).clamp(0, 9999999).toInt();
-      }
-    }
-
     final id = 'local_${DateTime.now().millisecondsSinceEpoch}';
     final fecha = DateTime.now().toIso8601String();
 
     await database.transaction((txn) async {
+      // Actualizar cantidadActual de las recepciones involucradas
+      int restante = cantidad;
+      for (final recepcionId in recepcionIds) {
+        if (restante <= 0) break;
+        final recRows = await database.query(
+          'recepciones',
+          where: 'id = ?',
+          whereArgs: [recepcionId],
+        );
+        if (recRows.isEmpty) continue;
+        final actual = (recRows.first['cantidadActual'] as num?)?.toInt() ?? 0;
+        int nuevaCantidad;
+        if (tipoAjuste == 'suma') {
+          nuevaCantidad = actual + restante;
+          restante = 0;
+        } else {
+          final descontar = restante > actual ? actual : restante;
+          nuevaCantidad = actual - descontar;
+          restante -= descontar;
+        }
+        await txn.update(
+          'recepciones',
+          {'cantidadActual': nuevaCantidad, 'sincronizado': 0},
+          where: 'id = ?',
+          whereArgs: [recepcionId],
+        );
+      }
+
       await txn.insert('ajustes', {
         'id': id,
         'tipo': tipo,
@@ -820,26 +864,28 @@ class DataMaster {
         'cantidad': cantidad,
         'motivo': motivo,
         'stockAnterior': stockAnterior,
-        'stockNuevo': nuevoStockTotal,
-        'destinoId': destinosIds.join(','),
+        'stockNuevo': 0, // se actualiza abajo
+        'recepcionId': recepcionIds.join(','),
         'lote': lote,
         'companero': companero,
         'retiroId': retiroId,
         'fecha': fecha,
         'sincronizado': 0,
       });
-
-      await txn.update(
-        'productos',
-        {
-          'stockActual': nuevoStockTotal,
-          'stockPorDestino': jsonEncode(stockPorDestino),
-          'sincronizado': 0,
-        },
-        where: 'id = ?',
-        whereArgs: [productoId],
-      );
     });
+
+    // Recalcular stock
+    await _recalcularStockProducto(null, productoId);
+
+    // Actualizar stockNuevo en el ajuste
+    final productoActualizado = await obtenerProductoPorId(productoId);
+    final stockNuevo = (productoActualizado?['stockActual'] as num?)?.toInt() ?? 0;
+    await database.update(
+      'ajustes',
+      {'stockNuevo': stockNuevo},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<List<Map<String, dynamic>>> obtenerAjustes({
@@ -875,7 +921,7 @@ class DataMaster {
   }
 
   // ─────────────────────────────────────────
-  // PREFIJOS
+  // PREFIJOS Y STOCK POR CÓDIGO
   // ─────────────────────────────────────────
 
   Future<List<String>> obtenerPrefijosUsados() async {
@@ -884,61 +930,28 @@ class DataMaster {
     return List<String>.from(jsonDecode(valor));
   }
 
-  // Calcula el stock real por prefijo descontando retiros
+  /// Stock real por prefijo — lee directamente cantidadActual de recepciones.
+  /// No necesita calcular nada: cantidadActual ya es el stock real de cada lote.
   Future<Map<String, Map<String, int>>> obtenerStockRealPorPrefijo(
       List<String> prefijos) async {
     final database = await db;
-
     final recepciones = await database.query('recepciones');
-    final Map<String, Map<String, int>> stockPorPrefijo = {};
+    final Map<String, Map<String, int>> resultado = {};
 
     for (final r in recepciones) {
       final codigo = (r['codigo'] ?? '').toString();
       final productoId = r['productoId']?.toString();
-      final cantidad = (r['cantidad'] as num?)?.toInt() ?? 0;
+      final cantidadActual = (r['cantidadActual'] as num?)?.toInt() ?? 0;
       if (productoId == null || codigo.length < 2) continue;
       final prefijo = codigo.substring(0, 2);
       if (!prefijos.contains(prefijo)) continue;
-      stockPorPrefijo.putIfAbsent(productoId, () => {});
-      stockPorPrefijo[productoId]![prefijo] =
-          (stockPorPrefijo[productoId]![prefijo] ?? 0) + cantidad;
+
+      resultado.putIfAbsent(productoId, () => {});
+      resultado[productoId]![prefijo] =
+          (resultado[productoId]![prefijo] ?? 0) + cantidadActual;
     }
 
-    final retiros = await database.query(
-      'retiros',
-      where: 'estado = ?',
-      whereArgs: ['cerrado'],
-    );
-
-    for (final r in retiros) {
-      final productoId = r['productoId']?.toString();
-      final consumo = (r['consumoReal'] as num?)?.toInt() ?? 0;
-      final codigoRetiro = (r['codigoRecepcion'] ?? '').toString();
-      if (productoId == null || consumo <= 0) continue;
-      if (!stockPorPrefijo.containsKey(productoId)) continue;
-
-      final mapa = stockPorPrefijo[productoId]!;
-
-      if (codigoRetiro.isNotEmpty && mapa.containsKey(codigoRetiro)) {
-        // Descontar exactamente del prefijo correcto
-        final disponible = mapa[codigoRetiro] ?? 0;
-        mapa[codigoRetiro] = (disponible - consumo).clamp(0, double.maxFinite).toInt();
-      } else {
-        // Fallback — descontar del prefijo con más stock
-        int restante = consumo;
-        final claves = mapa.keys.toList()
-          ..sort((a, b) => (mapa[b] ?? 0).compareTo(mapa[a] ?? 0));
-        for (final clave in claves) {
-          if (restante <= 0) break;
-          final disponible = mapa[clave] ?? 0;
-          final descontar = restante > disponible ? disponible : restante;
-          mapa[clave] = disponible - descontar;
-          restante -= descontar;
-        }
-      }
-    }
-
-    return stockPorPrefijo;
+    return resultado;
   }
 
   Future<void> _agregarPrefijo(String prefijo) async {
@@ -993,7 +1006,6 @@ class DataMaster {
     for (final row in pendientes) {
       final idLocal = row['id'] as String;
 
-      // ── CASO: SOFT DELETE ──────────────────────────────────────
       if (row['eliminado'] == 1) {
         if (!idLocal.startsWith('local_')) {
           await FirebaseFirestore.instance
@@ -1018,7 +1030,6 @@ class DataMaster {
         'destinos': jsonDecode(row['destinos'] as String),
       };
 
-      // ── CASO: NUEVO (id local) ─────────────────────────────────
       if (idLocal.startsWith('local_')) {
         final ref = FirebaseFirestore.instance.collection('productos').doc();
         await ref.set({...data, 'creadoEn': FieldValue.serverTimestamp()});
@@ -1032,20 +1043,14 @@ class DataMaster {
           whereArgs: [idLocal],
         );
 
-        // BARRIDO — propagar el ID real a todas las tablas hijas
         for (final tabla in ['retiros', 'recepciones', 'ajustes']) {
           await database.update(
             tabla,
-            {
-              'productoId': idReal,
-              'sincronizado': 0,
-            },
+            {'productoId': idReal, 'sincronizado': 0},
             where: 'productoId = ?',
             whereArgs: [idLocal],
           );
         }
-
-      // ── CASO: ACTUALIZACIÓN (id ya real) ───────────────────────
       } else {
         await FirebaseFirestore.instance
             .collection('productos')
@@ -1076,8 +1081,7 @@ class DataMaster {
       };
 
       if (id.startsWith('local_')) {
-        final ref =
-            FirebaseFirestore.instance.collection('destinos').doc();
+        final ref = FirebaseFirestore.instance.collection('destinos').doc();
         await ref.set({...data, 'creadoEn': FieldValue.serverTimestamp()});
         await database.update(
           'destinos',
@@ -1119,6 +1123,7 @@ class DataMaster {
         'tipo': row['tipo'],
         'idioma': row['idioma'],
         'cantidad': row['cantidad'],
+        'cantidadActual': row['cantidadActual'],
         'codigo': row['codigo'],
         'destinoClave': row['destinoClave'],
         'destinos': jsonDecode(row['destinos'] as String),
@@ -1163,6 +1168,7 @@ class DataMaster {
         'perdida': row['perdida'],
         'motivoCierre': row['motivoCierre'],
         'estado': row['estado'],
+        'codigoRecepcion': row['codigoRecepcion'],
         'fecha': FieldValue.serverTimestamp(),
         'fechaCierre':
             row['fechaCierre'] != null ? FieldValue.serverTimestamp() : null,
@@ -1204,6 +1210,7 @@ class DataMaster {
         'lote': row['lote'],
         'companero': row['companero'],
         'retiroId': row['retiroId'],
+        'recepcionId': row['recepcionId'],
         'fecha': FieldValue.serverTimestamp(),
       });
 
@@ -1221,7 +1228,7 @@ class DataMaster {
     await FirebaseFirestore.instance
         .collection('config')
         .doc('prefijos')
-        .update({'usados': usados});
+        .set({'usados': usados});
   }
 
   // ─────────────────────────────────────────
@@ -1240,7 +1247,6 @@ class DataMaster {
     final recepcion = rows.first;
 
     final productoId = recepcion['productoId'] as String?;
-    final cantidad = (recepcion['cantidad'] as num?)?.toInt() ?? 0;
     final codigo = (recepcion['codigo'] ?? '').toString();
 
     if (productoId == null) return false;
@@ -1254,54 +1260,13 @@ class DataMaster {
         (retirosPosteriores.first['count'] as int?) ?? 0;
     if (cantidadRetiros > 0) return false;
 
-    final producto = await obtenerProductoPorId(productoId);
-    if (producto == null) return false;
-
-    // Stock global — restar la cantidad de la recepción eliminada
-    final nuevoStockTotal =
-        ((producto['stockActual'] as num?)?.toInt() ?? 0) - cantidad;
-
-    // Restar del stockPorDestino los destinos de esta recepción
-    final destinosRecepcion = List<String>.from(
-      jsonDecode(recepcion['destinos'] as String? ?? '[]') as List,
-    );
-    final stockPorDestino =
-        Map<String, dynamic>.from(producto['stockPorDestino'] ?? {});
-    for (final d in destinosRecepcion) {
-      final actual = (stockPorDestino[d] as num?)?.toInt() ?? 0;
-      stockPorDestino[d] = (actual - cantidad).clamp(0, double.maxFinite).toInt();
-    }
-
-    // Recalcular destinos vigentes después de eliminar esta recepción
-    final recepcionesRestantes = await database.query(
-      'recepciones',
-      where: 'productoId = ? AND id != ?',
-      whereArgs: [productoId, recepcionId],
-    );
-
-    final destinosVigentes = <String>{};
-    for (final r in recepcionesRestantes) {
-      final lista = List<String>.from(
-        jsonDecode(r['destinos'] as String? ?? '[]') as List,
-      );
-      destinosVigentes.addAll(lista);
-    }
-
     await database.transaction((txn) async {
       await txn.delete('recepciones',
           where: 'id = ?', whereArgs: [recepcionId]);
-      await txn.update(
-        'productos',
-        {
-          'stockActual': nuevoStockTotal.clamp(0, double.maxFinite).toInt(),
-          'stockPorDestino': jsonEncode(stockPorDestino),
-          'destinos': jsonEncode(destinosVigentes.toList()),
-          'sincronizado': 0,
-        },
-        where: 'id = ?',
-        whereArgs: [productoId],
-      );
     });
+
+    // Recalcular stock
+    await _recalcularStockProducto(null, productoId);
 
     if (codigo.length >= 2) {
       final prefijo = codigo.substring(0, 2);
@@ -1338,48 +1303,31 @@ class DataMaster {
 
     final productoId = recepcion['productoId'] as String?;
     final cantidadOriginal = (recepcion['cantidad'] as num?)?.toInt() ?? 0;
+    final cantidadActualOriginal =
+        (recepcion['cantidadActual'] as num?)?.toInt() ?? 0;
 
     if (productoId == null) return false;
 
+    // La diferencia se aplica a cantidadActual
     final diferencia = nuevaCantidad - cantidadOriginal;
-
-    final producto = await obtenerProductoPorId(productoId);
-    if (producto == null) return false;
-
-    final stockActual = (producto['stockActual'] as num?)?.toInt() ?? 0;
-    final nuevoStockTotal =
-        (stockActual + diferencia).clamp(0, double.maxFinite).toInt();
-
-    // Actualizar stockPorDestino con la diferencia
-    final destinosRecepcion = List<String>.from(
-      jsonDecode(recepcion['destinos'] as String? ?? '[]') as List,
-    );
-    final stockPorDestino =
-        Map<String, dynamic>.from(producto['stockPorDestino'] ?? {});
-    for (final d in destinosRecepcion) {
-      final actual = (stockPorDestino[d] as num?)?.toInt() ?? 0;
-      stockPorDestino[d] =
-          (actual + diferencia).clamp(0, double.maxFinite).toInt();
-    }
+    final nuevaCantidadActual =
+        (cantidadActualOriginal + diferencia).clamp(0, double.maxFinite).toInt();
 
     await database.transaction((txn) async {
       await txn.update(
         'recepciones',
-        {'cantidad': nuevaCantidad},
-        where: 'id = ?',
-        whereArgs: [recepcionId],
-      );
-      await txn.update(
-        'productos',
         {
-          'stockActual': nuevoStockTotal,
-          'stockPorDestino': jsonEncode(stockPorDestino),
+          'cantidad': nuevaCantidad,
+          'cantidadActual': nuevaCantidadActual,
           'sincronizado': 0,
         },
         where: 'id = ?',
-        whereArgs: [productoId],
+        whereArgs: [recepcionId],
       );
     });
+
+    // Recalcular stock
+    await _recalcularStockProducto(null, productoId);
 
     return true;
   }
@@ -1403,6 +1351,10 @@ class DataMaster {
     final stockAnterior = (ajuste['stockAnterior'] as num?)?.toInt();
     final tipoAjuste = ajuste['tipoAjuste'] as String? ?? 'entrada';
     final fechaAjuste = ajuste['fecha'] as String?;
+    final recepcionIdsStr = (ajuste['recepcionId'] ?? '').toString();
+    final recepcionIds = recepcionIdsStr.isNotEmpty
+        ? recepcionIdsStr.split(',')
+        : <String>[];
 
     if (productoId == null || stockAnterior == null) return false;
 
@@ -1415,15 +1367,36 @@ class DataMaster {
       if (cantidad > 0) return false;
     }
 
+    // Revertir cantidadActual de las recepciones afectadas
+    final cantidad = (ajuste['cantidad'] as num?)?.toInt() ?? 0;
     await database.transaction((txn) async {
       await txn.delete('ajustes', where: 'id = ?', whereArgs: [ajusteId]);
-      await txn.update(
-        'productos',
-        {'stockActual': stockAnterior, 'sincronizado': 0},
-        where: 'id = ?',
-        whereArgs: [productoId],
-      );
+
+      for (final recepcionId in recepcionIds) {
+        if (recepcionId.isEmpty) continue;
+        final recRows = await database.query(
+          'recepciones',
+          where: 'id = ?',
+          whereArgs: [recepcionId],
+        );
+        if (recRows.isEmpty) continue;
+        final actual = (recRows.first['cantidadActual'] as num?)?.toInt() ?? 0;
+        final revertido = tipoAjuste == 'suma'
+            ? actual - cantidad
+            : actual + cantidad;
+        await txn.update(
+          'recepciones',
+          {
+            'cantidadActual': revertido.clamp(0, double.maxFinite).toInt(),
+            'sincronizado': 0,
+          },
+          where: 'id = ?',
+          whereArgs: [recepcionId],
+        );
+      }
     });
+
+    await _recalcularStockProducto(null, productoId);
 
     return true;
   }
@@ -1443,31 +1416,151 @@ class DataMaster {
     final ajuste = rows.first;
 
     final productoId = ajuste['productoId'] as String?;
-    final stockAnterior = (ajuste['stockAnterior'] as num?)?.toInt() ?? 0;
+    final cantidadAnterior = (ajuste['cantidad'] as num?)?.toInt() ?? 0;
     final tipoAjuste = ajuste['tipoAjuste'] as String? ?? 'entrada';
+    final recepcionIdsStr = (ajuste['recepcionId'] ?? '').toString();
+    final recepcionIds = recepcionIdsStr.isNotEmpty
+        ? recepcionIdsStr.split(',')
+        : <String>[];
 
     if (productoId == null) return false;
 
-    final nuevoStock = (tipoAjuste == 'suma' || tipoAjuste == 'entrada')
-        ? stockAnterior + nuevaCantidad
-        : (stockAnterior - nuevaCantidad).clamp(0, double.maxFinite).toInt();
+    final diferencia = nuevaCantidad - cantidadAnterior;
 
     await database.transaction((txn) async {
       await txn.update(
         'ajustes',
-        {'cantidad': nuevaCantidad, 'stockNuevo': nuevoStock},
+        {'cantidad': nuevaCantidad},
         where: 'id = ?',
         whereArgs: [ajusteId],
       );
-      await txn.update(
-        'productos',
-        {'stockActual': nuevoStock, 'sincronizado': 0},
-        where: 'id = ?',
-        whereArgs: [productoId],
-      );
+
+      for (final recepcionId in recepcionIds) {
+        if (recepcionId.isEmpty) continue;
+        final recRows = await database.query(
+          'recepciones',
+          where: 'id = ?',
+          whereArgs: [recepcionId],
+        );
+        if (recRows.isEmpty) continue;
+        final actual = (recRows.first['cantidadActual'] as num?)?.toInt() ?? 0;
+        final nuevo = tipoAjuste == 'suma'
+            ? actual + diferencia
+            : actual - diferencia;
+        await txn.update(
+          'recepciones',
+          {
+            'cantidadActual': nuevo.clamp(0, double.maxFinite).toInt(),
+            'sincronizado': 0,
+          },
+          where: 'id = ?',
+          whereArgs: [recepcionId],
+        );
+      }
     });
 
+    await _recalcularStockProducto(null, productoId);
+
     return true;
+  }
+
+  // ─────────────────────────────────────────
+  // HOJA DE AJUSTE
+  // ─────────────────────────────────────────
+
+  Future<void> registrarHojaAjuste({
+    required String productoId,
+    required String retiroId,
+    required int cantidad,
+    required String motivo,
+  }) async {
+    final database = await db;
+    final producto = await obtenerProductoPorId(productoId);
+    if (producto == null) throw Exception('Producto no encontrado');
+
+    final stockAnterior = (producto['stockActual'] as num).toInt();
+
+    // Encontrar el retiro para obtener el código de recepción
+    final retiroRows = await database.query(
+      'retiros',
+      where: 'id = ?',
+      whereArgs: [retiroId],
+    );
+    final retiro = retiroRows.isNotEmpty
+        ? retiroRows.first
+        : <String, dynamic>{};
+    final codigoRecepcion = (retiro['codigoRecepcion'] ?? '').toString();
+
+    // Buscar recepciones del lote para descontar
+    final recepcionIds = <String>[];
+    if (codigoRecepcion.isNotEmpty) {
+      final receps = await database.query(
+        'recepciones',
+        where: "productoId = ? AND codigo LIKE ?",
+        whereArgs: [productoId, '$codigoRecepcion%'],
+        orderBy: 'fecha ASC',
+      );
+      for (final r in receps) {
+        recepcionIds.add(r['id'] as String);
+      }
+    }
+
+    final id = 'local_${DateTime.now().millisecondsSinceEpoch}';
+
+    await database.transaction((txn) async {
+      // Descontar de las recepciones del lote
+      int restante = cantidad;
+      for (final recepcionId in recepcionIds) {
+        if (restante <= 0) break;
+        final recRows = await database.query(
+          'recepciones',
+          where: 'id = ?',
+          whereArgs: [recepcionId],
+        );
+        if (recRows.isEmpty) continue;
+        final actual = (recRows.first['cantidadActual'] as num?)?.toInt() ?? 0;
+        final descontar = restante > actual ? actual : restante;
+        await txn.update(
+          'recepciones',
+          {'cantidadActual': actual - descontar, 'sincronizado': 0},
+          where: 'id = ?',
+          whereArgs: [recepcionId],
+        );
+        restante -= descontar;
+      }
+
+      await txn.insert('ajustes', {
+        'id': id,
+        'tipo': 'hoja_ajuste',
+        'tipoAjuste': 'resta',
+        'productoId': productoId,
+        'productoNombre': producto['nombre'],
+        'tipoProducto': producto['tipo'],
+        'idioma': producto['idioma'],
+        'retiroId': retiroId,
+        'recepcionId': recepcionIds.join(','),
+        'lote': retiro['lote'] ?? '',
+        'companero': retiro['companero'] ?? '',
+        'cantidad': cantidad,
+        'stockAnterior': stockAnterior,
+        'stockNuevo': 0, // se actualiza abajo
+        'motivo': motivo,
+        'fecha': DateTime.now().toIso8601String(),
+        'sincronizado': 0,
+      });
+    });
+
+    await _recalcularStockProducto(null, productoId);
+
+    final productoActualizado = await obtenerProductoPorId(productoId);
+    final stockNuevo =
+        (productoActualizado?['stockActual'] as num?)?.toInt() ?? 0;
+    await database.update(
+      'ajustes',
+      {'stockNuevo': stockNuevo},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   // ─────────────────────────────────────────
@@ -1517,58 +1610,8 @@ class DataMaster {
   }
 
   // ─────────────────────────────────────────
-  // HOJA DE AJUSTE
+  // PIN
   // ─────────────────────────────────────────
-
-  Future<void> registrarHojaAjuste({
-    required String productoId,
-    required String retiroId,
-    required int cantidad,
-    required String motivo,
-  }) async {
-    final producto = await obtenerProductoPorId(productoId);
-    if (producto == null) throw Exception('Producto no encontrado');
-
-    final stockAnterior = (producto['stockActual'] as num).toInt();
-    final nuevoStock =
-        (stockAnterior - cantidad).clamp(0, double.maxFinite).toInt();
-
-    final retiros = await obtenerRetiros();
-    final retiro = retiros.firstWhere(
-      (r) => r['id'] == retiroId,
-      orElse: () => {},
-    );
-
-    final database = await db;
-    final id = 'local_${DateTime.now().millisecondsSinceEpoch}';
-
-    await database.transaction((txn) async {
-      await txn.insert('ajustes', {
-        'id': id,
-        'tipo': 'hoja_ajuste',
-        'tipoAjuste': 'resta',
-        'productoId': productoId,
-        'productoNombre': producto['nombre'],
-        'tipoProducto': producto['tipo'],
-        'idioma': producto['idioma'],
-        'retiroId': retiroId,
-        'lote': retiro['lote'] ?? '',
-        'companero': retiro['companero'] ?? '',
-        'cantidad': cantidad,
-        'stockAnterior': stockAnterior,
-        'stockNuevo': nuevoStock,
-        'motivo': motivo,
-        'fecha': DateTime.now().toIso8601String(),
-        'sincronizado': 0,
-      });
-      await txn.update(
-        'productos',
-        {'stockActual': nuevoStock, 'sincronizado': 0},
-        where: 'id = ?',
-        whereArgs: [productoId],
-      );
-    });
-  }
 
   Future<String> obtenerPin() async {
     try {

@@ -157,12 +157,16 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
     final data = _productoSeleccionado!;
     final destinosIds =
         List<String>.from(_combinacionSeleccionada!['destinosIds'] as List);
+    final recepcionIds = List<String>.from(
+        _combinacionSeleccionada!['recepcionIds'] as List? ?? []);
 
     if (_tipoAjuste == 'resta') {
-      final stockActual = (data['stockActual'] as num?)?.toInt() ?? 0;
-      if (cantidad > stockActual) {
+      // Validar contra cantidadActual de la combinación seleccionada
+      final disponible =
+          (_combinacionSeleccionada!['cantidadActual'] as num?)?.toInt() ?? 0;
+      if (cantidad > disponible) {
         setState(() => _error =
-            'Stock insuficiente. Stock disponible: $stockActual unidades');
+            'Stock insuficiente en este grupo. Disponibles: $disponible unidades');
         return;
       }
     }
@@ -186,6 +190,7 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
         cantidad: cantidad,
         motivo: motivoFinal,
         destinosIds: destinosIds,
+        recepcionIds: recepcionIds,
       );
 
       if (mounted) {
@@ -616,7 +621,7 @@ class _AjusteInventarioScreenState extends State<AjusteInventarioScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '$cantidad unidades recibidas en este grupo',
+                               'Cód. ${combinacion['prefijo'] ?? ''} · Disponibles: ${(combinacion['cantidadActual'] as num?)?.toInt() ?? 0}',
                                 style: TextStyle(
                                   color: seleccionado
                                       ? Colors.white70

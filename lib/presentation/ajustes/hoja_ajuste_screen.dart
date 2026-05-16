@@ -114,13 +114,17 @@ class _HojaAjusteScreenState extends State<HojaAjusteScreen> {
     final data = _retiroSeleccionado!;
     final productoId = data['productoId'] as String;
 
-    // Verificar stock global
+    // Verificar stock del lote del retiro
+    final codigoRecepcion = (data['codigoRecepcion'] ?? '').toString();
     final producto = await DataMaster().obtenerProductoPorId(productoId);
-    final stockDisponible = (producto?['stockActual'] as num?)?.toInt() ?? 0;
+    final stockDisponible = codigoRecepcion.isNotEmpty
+        ? await DataMaster().obtenerStockRealPorPrefijo([codigoRecepcion]).then(
+            (mapa) => mapa[productoId]?[codigoRecepcion] ?? 0)
+        : (producto?['stockActual'] as num?)?.toInt() ?? 0;
 
     if (cantidad > stockDisponible) {
       setState(() =>
-          _error = 'Stock insuficiente. Stock disponible: $stockDisponible');
+          _error = 'Stock insuficiente en este lote. Disponibles: $stockDisponible');
       return;
     }
 

@@ -576,8 +576,8 @@ class _VerProductosScreenState extends State<VerProductosScreen> {
     String? etiquetaCodigo;
 
     if (_prefijosActivos.isNotEmpty && _stockPorCodigo.containsKey(id)) {
-      stockMostrar =
-          _stockPorCodigo[id]!.values.fold(0, (sum, v) => sum + v);
+      stockMostrar = _prefijosActivos.fold(
+          0, (sum, p) => sum + (_stockPorCodigo[id]![p] ?? 0));
       etiquetaCodigo = _prefijosActivos.join(', ');
     } else {
       stockMostrar = (data['stockActual'] as num?)?.toInt() ?? 0;
