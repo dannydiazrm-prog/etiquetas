@@ -35,10 +35,7 @@ class _PinScreenState extends State<PinScreen> {
     setState(() => _loading = true);
     try {
       // Se cambió la lógica para que si leerConfig devuelve null o vacío, use '1234' por defecto
-      final resultadoLocal = await DataMaster().leerConfig('pin');
-      final pinCorrecto = (resultadoLocal != null && resultadoLocal.isNotEmpty) 
-          ? resultadoLocal 
-          : '1234';
+      final pinCorrecto = await DataMaster().obtenerPin();
 
       if (_pin == pinCorrecto) {
         if (mounted) context.go('/');
