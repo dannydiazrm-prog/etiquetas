@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:path/path.dart';
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -30,7 +29,7 @@ class DataMaster {
     final path = join(dir.path, 'galmedic.db');
     return openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _crearTablas,
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -48,6 +47,10 @@ class DataMaster {
           // Inicializar cantidadActual = cantidad para recepciones existentes
           await db.execute(
               "UPDATE recepciones SET cantidadActual = cantidad WHERE cantidadActual = 0");
+        }
+        if (oldVersion < 5) {
+          await db.execute(
+              "ALTER TABLE recepciones ADD COLUMN esCargaInicial INTEGER NOT NULL DEFAULT 0");
         }
       },
     );
@@ -117,6 +120,7 @@ class DataMaster {
         destinoClave TEXT NOT NULL,
         destinos TEXT NOT NULL DEFAULT '[]',
         fecha TEXT NOT NULL,
+        esCargaInicial INTEGER NOT NULL DEFAULT 0,
         sincronizado INTEGER NOT NULL DEFAULT 0
       )
     ''');
@@ -540,11 +544,48 @@ class DataMaster {
         'destinoClave': destinoClave,
         'destinos': jsonEncode(destinos),
         'fecha': fecha,
+        'esCargaInicial': 0,
         'sincronizado': 0,
       });
     });
 
     // Recalcular stock del producto desde recepciones
+    await _recalcularStockProducto(null, productoId);
+    await _agregarPrefijo(codigo.substring(0, 2));
+  }
+
+  Future<void> registrarCargaInicial({
+    required String productoId,
+    required String productoNombre,
+    required String tipo,
+    required String idioma,
+    required int cantidad,
+    required String codigo,
+    required String destinoClave,
+    required List<String> destinos,
+  }) async {
+    final database = await db;
+    final id = 'local_${DateTime.now().millisecondsSinceEpoch}';
+    final fecha = DateTime.now().toIso8601String();
+
+    await database.transaction((txn) async {
+      await txn.insert('recepciones', {
+        'id': id,
+        'productoId': productoId,
+        'productoNombre': productoNombre,
+        'tipo': tipo,
+        'idioma': idioma,
+        'cantidad': cantidad,
+        'cantidadActual': cantidad,
+        'codigo': codigo,
+        'destinoClave': destinoClave,
+        'destinos': jsonEncode(destinos),
+        'fecha': fecha,
+        'esCargaInicial': 1,
+        'sincronizado': 0,
+      });
+    });
+
     await _recalcularStockProducto(null, productoId);
     await _agregarPrefijo(codigo.substring(0, 2));
   }
@@ -555,7 +596,7 @@ class DataMaster {
     String? nombre,
   }) async {
     final database = await db;
-    String where = '1=1';
+    String where = 'esCargaInicial = 0';
     List<dynamic> args = [];
 
     if (desde != null) {
@@ -1231,6 +1272,7 @@ class DataMaster {
         'codigo': row['codigo'],
         'destinoClave': row['destinoClave'],
         'destinos': jsonDecode(row['destinos'] as String),
+        'esCargaInicial': row['esCargaInicial'] == 1,
         'fecha': FieldValue.serverTimestamp(),
       });
 
@@ -1862,25 +1904,18 @@ class DataMaster {
   // ─────────────────────────────────────────
 
   Future<String> obtenerPin() async {
-  if (kIsWeb) {
-    final snap = await FirebaseFirestore.instance
-        .collection('config')
-        .doc('pin')
-        .get();
-    return snap.data()?['valor']?.toString() ?? '1234';
-  }
-  try {
-    final snap = await FirebaseFirestore.instance
-        .collection('config')
-        .doc('pin')
-        .get();
-    if (snap.exists) {
-      return snap.data()?['valor']?.toString() ?? '1234';
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('config')
+          .doc('pin')
+          .get();
+      if (snap.exists) {
+        return snap.data()?['valor']?.toString() ?? '1234';
+      }
+    } catch (e) {
+      final pinLocal = await leerConfig('pin');
+      if (pinLocal != null) return pinLocal;
     }
-  } catch (e) {
-    final pinLocal = await leerConfig('pin');
-    if (pinLocal != null) return pinLocal;
+    return '1234';
   }
-  return '1234';
-}
 }

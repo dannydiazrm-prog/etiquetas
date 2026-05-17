@@ -3,8 +3,23 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/breakpoints.dart';
 
-class GestionDatosScreen extends StatelessWidget {
+class GestionDatosScreen extends StatefulWidget {
   const GestionDatosScreen({super.key});
+
+  @override
+  State<GestionDatosScreen> createState() => _GestionDatosScreenState();
+}
+
+class _GestionDatosScreenState extends State<GestionDatosScreen> {
+  int _tapCount = 0;
+  bool _mostrarCargaInicial = false;
+
+  void _onHeaderTap() {
+    _tapCount++;
+    if (_tapCount >= 5) {
+      setState(() => _mostrarCargaInicial = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +91,18 @@ class GestionDatosScreen extends StatelessWidget {
                         ruta: '/perfil/gestion/eliminar-producto',
                         peligroso: true,
                       ),
+                      // Botón oculto — aparece solo después de 5 taps en el header
+                      if (_mostrarCargaInicial) ...[
+                        const SizedBox(height: 16),
+                        _buildOpcion(
+                          context,
+                          titulo: 'Carga Inicial de Stock',
+                          descripcion:
+                              'Cargá el stock existente sin que aparezca en el historial de recepciones.',
+                          icono: Icons.inventory_2_outlined,
+                          ruta: '/perfil/gestion/carga-inicial',
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -163,31 +190,34 @@ class GestionDatosScreen extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
-    return Container(
-      color: AppColors.primary,
-      padding: EdgeInsets.only(
-        top: topPadding + 12,
-        bottom: 16,
-        left: 8,
-        right: 16,
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => context.pop(),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'GESTIÓN DE DATOS',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: Breakpoints.isMobile(context) ? 20 : 28,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.2,
+    return GestureDetector(
+      onTap: _onHeaderTap,
+      child: Container(
+        color: AppColors.primary,
+        padding: EdgeInsets.only(
+          top: topPadding + 12,
+          bottom: 16,
+          left: 8,
+          right: 16,
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => context.pop(),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Text(
+              'GESTIÓN DE DATOS',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: Breakpoints.isMobile(context) ? 20 : 28,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

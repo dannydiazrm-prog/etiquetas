@@ -127,6 +127,10 @@ final appRouter = GoRouter(
           path: 'nuevo-destino',
           builder: (context, state) => const NuevoDestinoScreen(),
         ),
+		GoRoute(
+  path: '/perfil/gestion/carga-inicial',
+  builder: (context, state) => const CargaInicialScreen(),
+),
         GoRoute(
           path: 'toma',
           builder: (context, state) => const TomaInventarioScreen(),
