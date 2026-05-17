@@ -1398,6 +1398,16 @@ class DataMaster {
           where: 'id = ?', whereArgs: [recepcionId]);
     });
 
+    // Borrar en Firestore si ya tiene ID real
+    if (!recepcionId.startsWith('local_')) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('recepciones')
+            .doc(recepcionId)
+            .delete();
+      } catch (_) {}
+    }
+
     // Recalcular stock
     await _recalcularStockProducto(null, productoId);
 
@@ -1530,6 +1540,16 @@ class DataMaster {
     });
 
     await _recalcularStockProducto(null, productoId);
+
+    // Borrar en Firestore si ya tiene ID real
+    if (!ajusteId.startsWith('local_')) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('ajustes')
+            .doc(ajusteId)
+            .delete();
+      } catch (_) {}
+    }
 
     return true;
   }
@@ -1717,6 +1737,32 @@ class DataMaster {
         .whereType<String>()
         .toSet();
 
+    // Recopilar IDs reales antes de borrar en SQLite
+    final recepcionesIds = recepciones
+        .map((r) => r['id'] as String)
+        .where((id) => !id.startsWith('local_'))
+        .toList();
+
+    final retirosList = await database.query(
+      'retiros',
+      where: 'productoId = ?',
+      whereArgs: [productoId],
+    );
+    final retirosIds = retirosList
+        .map((r) => r['id'] as String)
+        .where((id) => !id.startsWith('local_'))
+        .toList();
+
+    final ajustesList = await database.query(
+      'ajustes',
+      where: 'productoId = ?',
+      whereArgs: [productoId],
+    );
+    final ajustesIds = ajustesList
+        .map((r) => r['id'] as String)
+        .where((id) => !id.startsWith('local_'))
+        .toList();
+
     await database.transaction((txn) async {
       await txn.delete('recepciones',
           where: 'productoId = ?', whereArgs: [productoId]);
@@ -1727,6 +1773,34 @@ class DataMaster {
       await txn.delete('productos',
           where: 'id = ?', whereArgs: [productoId]);
     });
+
+    // Borrar en Firestore — se hace después de SQLite para no dejar
+    // datos huérfanos si falla la red; al reiniciar, _descargarProductos
+    // ya no encontrará el producto porque fue borrado aquí.
+    try {
+      final fs = FirebaseFirestore.instance;
+      final batch = fs.batch();
+
+      if (!productoId.startsWith('local_')) {
+        batch.delete(fs.collection('productos').doc(productoId));
+      }
+      for (final id in recepcionesIds) {
+        batch.delete(fs.collection('recepciones').doc(id));
+      }
+      for (final id in retirosIds) {
+        batch.delete(fs.collection('retiros').doc(id));
+      }
+      for (final id in ajustesIds) {
+        batch.delete(fs.collection('ajustes').doc(id));
+      }
+
+      await batch.commit();
+    } catch (_) {
+      // Sin internet: el dato ya fue borrado en SQLite.
+      // Si el usuario vuelve con internet antes de sincronizar,
+      // los documentos de Firestore quedarán huérfanos.
+      // Se puede mejorar en el futuro con una tabla de "pendientes de borrado".
+    }
 
     for (final prefijo in prefijosUsados) {
       final otras = await database.rawQuery(
