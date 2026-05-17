@@ -25,6 +25,7 @@ import '../../presentation/inventario/toma_inventario_screen.dart';
 import '../../presentation/inventario/ver_productos_screen.dart';
 import '../../presentation/inventario/reportes_screen.dart';
 import '../../presentation/inventario/control_stock_screen.dart';
+import '../../presentation/perfil/carga_inicial_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/pin',
