@@ -1053,6 +1053,7 @@ class DataMaster {
     }
   }
 
+  // ── FIX Bug 3: _sincronizarDestinos ahora propaga el ID real a retiros ──
   Future<void> _sincronizarDestinos() async {
     final database = await db;
     final pendientes = await database.query(
@@ -1061,36 +1062,48 @@ class DataMaster {
     );
 
     for (final row in pendientes) {
-      final id = row['id'] as String;
+      final idLocal = row['id'] as String;
       final data = {
         'nombre': row['nombre'],
         'editable': row['editable'] == 1,
       };
 
-      if (id.startsWith('local_')) {
+      if (idLocal.startsWith('local_')) {
         final ref = FirebaseFirestore.instance.collection('destinos').doc();
         await ref.set({...data, 'creadoEn': FieldValue.serverTimestamp()});
+        final idReal = ref.id;
+
+        // Actualizar el ID en SQLite
         await database.update(
           'destinos',
-          {'id': ref.id, 'sincronizado': 1},
+          {'id': idReal, 'sincronizado': 1},
           where: 'id = ?',
-          whereArgs: [id],
+          whereArgs: [idLocal],
+        );
+
+        // FIX: propagar el ID real a retiros que usaban este destinoId local
+        await database.update(
+          'retiros',
+          {'destinoId': idReal, 'sincronizado': 0},
+          where: 'destinoId = ?',
+          whereArgs: [idLocal],
         );
       } else {
         await FirebaseFirestore.instance
             .collection('destinos')
-            .doc(id)
+            .doc(idLocal)
             .update(data);
         await database.update(
           'destinos',
           {'sincronizado': 1},
           where: 'id = ?',
-          whereArgs: [id],
+          whereArgs: [idLocal],
         );
       }
     }
   }
 
+  // ── FIX Bug 1a: _sincronizarRecepciones ahora reemplaza el ID local → real ──
   Future<void> _sincronizarRecepciones() async {
     final database = await db;
     final pendientes = await database.query(
@@ -1099,10 +1112,11 @@ class DataMaster {
     );
 
     for (final row in pendientes) {
-      final id = row['id'] as String;
-      final ref = id.startsWith('local_')
+      final idLocal = row['id'] as String;
+
+      final ref = idLocal.startsWith('local_')
           ? FirebaseFirestore.instance.collection('recepciones').doc()
-          : FirebaseFirestore.instance.collection('recepciones').doc(id);
+          : FirebaseFirestore.instance.collection('recepciones').doc(idLocal);
 
       await ref.set({
         'productoId': row['productoId'],
@@ -1117,15 +1131,50 @@ class DataMaster {
         'fecha': FieldValue.serverTimestamp(),
       });
 
-      await database.update(
-        'recepciones',
-        {'sincronizado': 1},
-        where: 'id = ?',
-        whereArgs: [id],
-      );
+      if (idLocal.startsWith('local_')) {
+        final idReal = ref.id;
+
+        // FIX: reemplazar el ID local por el real en SQLite
+        await database.update(
+          'recepciones',
+          {'id': idReal, 'sincronizado': 1},
+          where: 'id = ?',
+          whereArgs: [idLocal],
+        );
+
+        // FIX: actualizar referencias en ajustes (recepcionId es lista CSV)
+        // Buscar ajustes que contengan este ID local en su campo recepcionId
+        final ajustesConRef = await database.query(
+          'ajustes',
+          where: "recepcionId LIKE ?",
+          whereArgs: ['%$idLocal%'],
+        );
+        for (final ajuste in ajustesConRef) {
+          final recepcionIdStr = (ajuste['recepcionId'] ?? '').toString();
+          final idActualizado = recepcionIdStr
+              .split(',')
+              .map((id) => id.trim() == idLocal ? idReal : id.trim())
+              .join(',');
+          await database.update(
+            'ajustes',
+            {'recepcionId': idActualizado, 'sincronizado': 0},
+            where: 'id = ?',
+            whereArgs: [ajuste['id']],
+          );
+        }
+      } else {
+        await database.update(
+          'recepciones',
+          {'sincronizado': 1},
+          where: 'id = ?',
+          whereArgs: [idLocal],
+        );
+      }
     }
   }
 
+  // ── FIX Bug 1b: _sincronizarRetiros ahora reemplaza el ID local → real ──
+  // ── FIX Bug 2: fechaCierre usa el valor guardado en SQLite, no serverTimestamp ──
   Future<void> _sincronizarRetiros() async {
     final database = await db;
     final pendientes = await database.query(
@@ -1134,10 +1183,11 @@ class DataMaster {
     );
 
     for (final row in pendientes) {
-      final id = row['id'] as String;
-      final ref = id.startsWith('local_')
+      final idLocal = row['id'] as String;
+
+      final ref = idLocal.startsWith('local_')
           ? FirebaseFirestore.instance.collection('retiros').doc()
-          : FirebaseFirestore.instance.collection('retiros').doc(id);
+          : FirebaseFirestore.instance.collection('retiros').doc(idLocal);
 
       await ref.set({
         'productoId': row['productoId'],
@@ -1157,19 +1207,40 @@ class DataMaster {
         'estado': row['estado'],
         'codigoRecepcion': row['codigoRecepcion'],
         'fecha': FieldValue.serverTimestamp(),
-        'fechaCierre':
-            row['fechaCierre'] != null ? FieldValue.serverTimestamp() : null,
+        // FIX Bug 2: usar la fecha real de cierre guardada en SQLite
+        'fechaCierre': row['fechaCierre'],
       });
 
-      await database.update(
-        'retiros',
-        {'sincronizado': 1},
-        where: 'id = ?',
-        whereArgs: [id],
-      );
+      if (idLocal.startsWith('local_')) {
+        final idReal = ref.id;
+
+        // FIX: reemplazar el ID local por el real en SQLite
+        await database.update(
+          'retiros',
+          {'id': idReal, 'sincronizado': 1},
+          where: 'id = ?',
+          whereArgs: [idLocal],
+        );
+
+        // FIX: actualizar referencias en ajustes que apuntaban a este retiro
+        await database.update(
+          'ajustes',
+          {'retiroId': idReal, 'sincronizado': 0},
+          where: 'retiroId = ?',
+          whereArgs: [idLocal],
+        );
+      } else {
+        await database.update(
+          'retiros',
+          {'sincronizado': 1},
+          where: 'id = ?',
+          whereArgs: [idLocal],
+        );
+      }
     }
   }
 
+  // ── FIX Bug 1c: _sincronizarAjustes ahora reemplaza el ID local → real ──
   Future<void> _sincronizarAjustes() async {
     final database = await db;
     final pendientes = await database.query(
@@ -1178,10 +1249,11 @@ class DataMaster {
     );
 
     for (final row in pendientes) {
-      final id = row['id'] as String;
-      final ref = id.startsWith('local_')
+      final idLocal = row['id'] as String;
+
+      final ref = idLocal.startsWith('local_')
           ? FirebaseFirestore.instance.collection('ajustes').doc()
-          : FirebaseFirestore.instance.collection('ajustes').doc(id);
+          : FirebaseFirestore.instance.collection('ajustes').doc(idLocal);
 
       await ref.set({
         'tipo': row['tipo'],
@@ -1201,12 +1273,24 @@ class DataMaster {
         'fecha': FieldValue.serverTimestamp(),
       });
 
-      await database.update(
-        'ajustes',
-        {'sincronizado': 1},
-        where: 'id = ?',
-        whereArgs: [id],
-      );
+      if (idLocal.startsWith('local_')) {
+        final idReal = ref.id;
+
+        // FIX: reemplazar el ID local por el real en SQLite
+        await database.update(
+          'ajustes',
+          {'id': idReal, 'sincronizado': 1},
+          where: 'id = ?',
+          whereArgs: [idLocal],
+        );
+      } else {
+        await database.update(
+          'ajustes',
+          {'sincronizado': 1},
+          where: 'id = ?',
+          whereArgs: [idLocal],
+        );
+      }
     }
   }
 
